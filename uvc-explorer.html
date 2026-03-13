@@ -305,9 +305,9 @@ const ROOMS = {
       "10": {score:154.5, lamps:[[2.5787854654916504,7.068807983882839,91.27064758476182,0],[19.298539236303192,0.3071774055836698,53.53279888692043,0],[0.3,0.9081766276141656,22.494374233914716,45],[34.9389776801794,13.710950647522255,235.42230205914902,0],[4.739073160764404,13.861533167785936,119.59406896936935,4],[3.4903154971662578,0.3,70.7518929999058,4],[17.845348485179567,13.406526972753241,115.18103431002447,0],[35.19606884799007,11.725585621332373,194.72376029268753,1],[23.414825377193946,0.40335919921597585,300.3858602945903,0],[0.3,13.580997835202572,156.9178429068686,45]]}
     },
     lampOptions_4hr: {
-      "6": {score:230.3, lamps:[[18.43266645876236,8.896445990757083,103.7046146796724,12],[32.979329555161996,9.566894989761632,253.16585525932229,12],[19.409886399814116,2.8310947646910516,63.053692286132566,12],[22.59867557023502,13.899999999999999,151.43129428410177,12],[0.7171469814813782,7.4007980577570756,96.01546753592953,36],[32.95479947763596,4.795752426815302,284.8822313033949,12]]},
-      "8": {score:297.3, lamps:[[1.9998397567618194,6.776784376574914,90.03955718328152,40],[33.25147504748882,6.813289700424363,271.75546965206206,12],[20.786656489756332,13.140608418162884,131.96885457545707,12],[17.713516105425107,8.452709674075717,100.54371025146914,12],[1.9998917955067528,8.861670977009279,117.50488994776576,43],[32.38493019210527,10.634713154171946,251.60215574755804,12],[19.56155119873589,2.7858819175755074,68.03550307434783,12],[32.115693119877584,3.951847256684718,285.7052557363573,12]]},
-      "10": {score:355.2, lamps:[[1.6366426912469376,11.555904741097567,121.20522303939396,41],[28.33292980999892,12.229569170657312,240.80146689803215,12],[18.417979738638707,6.712767340309631,88.31172796078724,12],[1.9963795297639753,9.00453879771581,108.72185552482335,37],[32.45341613978594,3.6751691352182534,291.3891288761328,12],[33.20086135876067,8.791369510451549,256.9917517316346,12],[1.509140185639297,2.632075974343426,69.0934185329285,36],[31.629507915794377,12.263881206219176,237.27272510117592,12],[21.06263398573219,2.699846365079773,73.35821950550347,12],[1.9440080583650277,5.074829157369472,85.06509769684666,36]]}
+      "6": {score:284.5, lamps:[[35.2,0.9798072757406252,326.0592787643617,45],[27.228653584134083,10.998823980269252,249.8039107862662,34],[27.29899944714456,3.254434354110187,288.213576976584,33],[30.64691041759482,10.358571409311926,239.88717862261987,38],[19.19660876725332,6.497561104669382,269.80057793913153,37],[30.75132024970601,3.6486023717362186,298.9679909615059,36]]},
+      "8": {score:353.3, lamps:[[27.24863927782004,3.1874439023346084,284.19643518942473,32],[22.507123841707116,11.496712521398573,115.72557370187475,33],[31.22037611428041,9.745759419545907,249.32306105910098,33],[23.95136794928534,7.594566926076443,264.4789370539319,32],[19.052613614648788,4.965432311906443,279.3394070852299,37],[30.87745155558139,4.247869959492642,286.87555984825264,36],[12.048459634659396,8.55353144767531,126.97327244236256,65],[35.01513224832464,2.106491317291115,333.12733700983074,65]]},
+      "10": {score:405.7, lamps:[[7.739171521410815,5.640665085530762,89.98430783098196,45],[27.203591099490296,2.91235964901398,286.3582392494994,31],[31.323391293146734,9.897806110941897,246.33057558032493,33],[14.574360458978395,0.7208650272916192,308.1465995277269,39],[7.934921045349378,9.338143996663993,122.09715164412079,43],[34.03004029178383,2.2240346152168016,0,70],[13.822273809976013,8.869590764520261,155.1662446733431,74],[23.68192721130684,7.6025950887652485,264.43640912682474,35],[30.93678675446197,4.464494423508995,282.22944966125,35],[22.654148244496124,11.40219834856692,112.88506209920473,36]]}
     },
     lampOptions: {} // set dynamically
   }
@@ -391,7 +391,10 @@ function irrOneLamp(lx,ly,aimC,tilt,px,py,ph) {
   return E;
 }
 
-function irrAllLamps(px,py,ph) { return lamps.map(([lx,ly,a,t])=>irrOneLamp(lx,ly,a,t,px,py,ph)); }
+function irrAllLamps(px,py,ph) {
+  const fn = showEyeWeighted ? eyeIrrOneLamp : irrOneLamp;
+  return lamps.map(([lx,ly,a,t])=>fn(lx,ly,a,t,px,py,ph));
+}
 
 // ═══════════════════════════════════════════════════════
 // FLOOR PLAN DRAWING
@@ -657,7 +660,8 @@ function computeHeatmap() {
   for(let j=0;j<res;j++){for(let i=0;i<res;i++){
     const px=(i+.5)/res*room.w, py=(j+.5)/res*room.h;
     let tot=0;
-    for(const[lx,ly,aim,tilt]of lamps) tot+=irrOneLamp(lx,ly,aim,tilt,px,py,evalHeight);
+    const fn = showEyeWeighted ? eyeIrrOneLamp : irrOneLamp;
+    for(const[lx,ly,aim,tilt]of lamps) tot+=fn(lx,ly,aim,tilt,px,py,evalHeight);
     data[j*res+i]=tot;
   }}
   return{data,res};
@@ -700,12 +704,29 @@ function updateLampTable() {
   });
 }
 
+// Eye-weighted irradiance for a single lamp (ACGIH FOV model)
+const FOV_HALF_RAD = 40 * Math.PI / 180;
+function eyeIrrOneLamp(lx,ly,aimC,tilt,px,py,ph) {
+  const raw = irrOneLamp(lx,ly,aimC,tilt,px,py,ph);
+  if (raw === 0) return 0;
+  const room = ROOMS[currentRoom];
+  const vx=px-lx,vy=py-ly,vz=ph-room.mountH;
+  const d=Math.max(Math.sqrt(vx*vx+vy*vy+vz*vz),0.1);
+  const cos_tv = Math.min(1, Math.max(-1, (room.mountH-ph)/d));
+  const tv = Math.acos(cos_tv);
+  if (tv < Math.PI/2 - FOV_HALF_RAD || tv > Math.PI/2 + FOV_HALF_RAD) return 0;
+  return raw * Math.sin(tv);
+}
+
+let showEyeWeighted = false;
+
 // Sample average irradiance at specific points in a zone
 function zoneAvg(points, height) {
   if (lamps.length === 0) return 0;
   let sum = 0;
+  const irrFn = showEyeWeighted ? eyeIrrOneLamp : irrOneLamp;
   for (const [px, py] of points) {
-    for (const [lx, ly, a, t] of lamps) sum += irrOneLamp(lx, ly, a, t, px, py, height);
+    for (const [lx, ly, a, t] of lamps) sum += irrFn(lx, ly, a, t, px, py, height);
   }
   return sum / points.length;
 }
@@ -817,7 +838,9 @@ function updateStats() {
 
   // Zone-specific averages
   const zones = currentRoom === '10E' ? get10EZones() : get10SEZones();
-  html += `<h3 style="margin-top:10px;">Zone Averages</h3>`;
+  const modeLabel = showEyeWeighted ? 'eye-weighted' : 'surface';
+  html += `<h3 style="margin-top:10px;">Zone Averages <span style="font-size:9px;font-weight:400;color:#888;">(${modeLabel})</span></h3>`;
+  html += `<div style="margin-bottom:4px;"><label style="font-size:9px;cursor:pointer;color:#1a73e8;"><input type="checkbox" id="eyeToggle" ${showEyeWeighted?'checked':''} style="margin-right:3px;">Show eye-weighted (ACGIH FOV model)</label></div>`;
   html += `<table style="font-size:10px;border-collapse:collapse;width:100%;">`;
   for (const z of zones) {
     const avg = zoneAvg(z.points, z.height);
@@ -828,12 +851,48 @@ function updateStats() {
   }
   html += `</table>`;
 
+  // eACH estimate (room-average irradiance × pathogen k × 3.6)
+  // Always use raw irradiance for eACH (pathogen kill is not eye-weighted)
+  const roomAvgIrr = (() => {
+    if (lamps.length === 0) return 0;
+    const room = ROOMS[currentRoom];
+    const sampleRes = 50; // coarse grid is fine for average
+    let sum = 0;
+    for (let j=0;j<sampleRes;j++) for (let i=0;i<sampleRes;i++) {
+      const px=(i+.5)/sampleRes*room.w, py=(j+.5)/sampleRes*room.h;
+      for (const[lx,ly,aim,tilt] of lamps) sum += irrOneLamp(lx,ly,aim,tilt,px,py,evalHeight);
+    }
+    return sum / (sampleRes*sampleRes);
+  })();
+  if (roomAvgIrr > 0) {
+    const eachPathogens = [
+      { name: 'Flu (Buonanno)', k: 20.06 },
+      { name: 'Cold OC43', k: 12.40 },
+      { name: 'COVID-19', k: 2.62 },
+    ];
+    html += `<h3 style="margin-top:10px;">Est. UV eACH</h3>`;
+    html += `<div style="font-size:9px;color:#888;margin-bottom:3px;">Room-avg ${roomAvgIrr.toFixed(2)} µW/cm² @${evalHeight.toFixed(1)}ft</div>`;
+    html += `<table style="font-size:10px;border-collapse:collapse;width:100%;">`;
+    for (const p of eachPathogens) {
+      const each = p.k * roomAvgIrr * 3.6; // k(cm²/mJ) × E(µW/cm²) × 3600s/hr / 1000(µJ→mJ)
+      html += `<tr><td style="padding:1px 0;">${p.name}</td>`;
+      html += `<td style="padding:1px 4px;text-align:right;font-weight:600;font-family:monospace;">${each.toFixed(1)}</td>`;
+      html += `<td style="padding:1px 0;font-size:9px;color:#888;">eACH</td></tr>`;
+    }
+    html += `</table>`;
+    html += `<div style="font-size:9px;color:#888;margin-top:2px;">Additive to existing ventilation/filtration</div>`;
+  }
+
   document.getElementById('stats').innerHTML = html;
+
+  // Wire up eye-weighted toggle
+  const eyeEl = document.getElementById('eyeToggle');
+  if (eyeEl) eyeEl.addEventListener('change', e => { showEyeWeighted = e.target.checked; render(); });
 
   // Update safety note for mode
   const sn = document.getElementById('safetyNote');
   if (currentMode === '4hr' && currentRoom === '10SE') {
-    sn.innerHTML = '<span style="color:#e65100;font-weight:600;">Relaxed TLV mode:</span> Standing: 13.5 µW/cm² (3hr) · Seated: 6.8 µW/cm² (6hr).<br>Exact ACGIH 146.1 mJ/cm² dose limit. Glasses recommended for longer sessions facing lamps.';
+    sn.innerHTML = '<span style="color:#e65100;font-weight:600;">Relaxed TLV mode:</span> Standing: 13.5 µW/cm² (3hr) · Seated: 6.8 µW/cm² (6hr) · Desks: 5.1 µW/cm² (8hr).<br>Exact ACGIH 146.1 mJ/cm² dose. Glasses recommended for &gt;3hr standing or &gt;6hr seated facing lamps.';
   } else {
     sn.innerHTML = 'IES/ANSI eye TLV: 5.07 µW/cm² (8h continuous).<br>Optimizer targets peak &lt;5.0 µW/cm² with buffer.';
   }
