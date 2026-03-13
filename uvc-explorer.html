@@ -624,11 +624,11 @@ function drawLamps(ctx) {
     const dy_room = (room.yFlip ? 1 : -1) * len*Math.cos(aim*Math.PI/180);
     // Arrow
     ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=5;
-    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room*(room.yFlip?1:-1)));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room));ctx.stroke();
     ctx.strokeStyle='#c62828';ctx.lineWidth=2.5;
-    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room*(room.yFlip?1:-1)));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room));ctx.stroke();
     // Compute end point for arrowhead
-    const endX = ftX(x+dx), endY = ftY(y+dy_room*(room.yFlip?1:-1));
+    const endX = ftX(x+dx), endY = ftY(y+dy_room);
     const startX = ftX(x), startY = ftY(y);
     const ang = Math.atan2(endY-startY, endX-startX);
     ctx.beginPath();ctx.moveTo(endX,endY);
