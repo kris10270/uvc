@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Far-UVC Coverage Explorer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
+
+/* ── Top bar ── */
+.topbar { background: #fff; border-bottom: 1px solid #ddd; padding: 10px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+.topbar h1 { font-size: 15px; white-space: nowrap; }
+.sel-group { display: flex; align-items: center; gap: 6px; }
+.sel-group label { font-size: 11px; font-weight: 600; color: #555; }
+.sel-group select, .sel-group input[type=range] { font-size: 12px; }
+.sel-group select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+.sel-group .val { font-size: 11px; font-weight: 600; color: #1a73e8; min-width: 36px; }
+.topbar .spacer { flex: 1; }
+.topbar .load-toggle { font-size: 11px; color: #1a73e8; cursor: pointer; border: 1px solid #c4d7f5; border-radius: 4px; padding: 4px 10px; background: #f0f4ff; }
+.topbar .load-toggle:hover { background: #e0ecff; }
+
+/* ── Load panel ── */
+#loadPanel { display: none; background: #fff; border-bottom: 1px solid #ddd; padding: 8px 16px; }
+#loadPanel .inner { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 900px; margin: 0 auto; }
+#loadPanel textarea { flex: 1; min-width: 250px; height: 32px; font-size: 10px; font-family: monospace; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; }
+.btn { padding: 5px 12px; font-size: 11px; border: 1px solid #999; border-radius: 3px; background: #fff; cursor: pointer; }
+.btn:hover { background: #f0f0f0; }
+.btn-primary { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+.btn-primary:hover { background: #1b5e20; }
+.file-label { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; font-size: 11px; border: 1px solid #999; border-radius: 3px; background: #fff; cursor: pointer; }
+.file-label:hover { background: #f0f0f0; }
+.file-label input { display: none; }
+#status { font-size: 11px; color: #666; }
+
+/* ── Map area ── */
+.map-area { display: flex; justify-content: center; padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+.map-wrap { position: relative; }
+#mapCanvas { cursor: crosshair; background: #fff; display: block; border: 1px solid #ccc; }
+.tooltip { position: absolute; pointer-events: none; background: rgba(255,255,255,0.97); border: 1px solid #999; border-radius: 4px; padding: 8px 10px; font-size: 11px; line-height: 1.5; min-width: 240px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 10; display: none; }
+.tooltip .header { font-weight: 700; font-size: 12px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 4px; }
+.tooltip .total { font-weight: 700; font-size: 12px; }
+.tooltip .lamp-row { display: flex; justify-content: space-between; gap: 16px; }
+.tooltip .lamp-row .val { font-family: monospace; }
+
+/* ── Sidebar ── */
+.sidebar { width: 220px; font-size: 11px; flex-shrink: 0; }
+.sidebar h3 { font-size: 12px; margin-bottom: 4px; }
+.lamp-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.lamp-table th, .lamp-table td { padding: 2px 4px; text-align: left; border-bottom: 1px solid #eee; }
+.lamp-table th { font-weight: 600; color: #666; }
+.legend-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 10px; }
+.legend-swatch { width: 14px; height: 10px; border: 1px solid #999; }
+.safety-note { font-size: 9px; color: #888; margin-top: 8px; line-height: 1.4; }
+
+/* ── Plume section ── */
+#plumeSection { display: none; background: #fff; border-top: 2px solid #1a73e8; }
+#plumeSection .plume-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #f0f4ff; cursor: pointer; }
+#plumeSection .plume-bar span { font-size: 12px; font-weight: 600; color: #1a73e8; }
+#plumeSection .plume-close { font-size: 11px; color: #888; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; padding: 2px 10px; background: #fff; }
+#plumeSection .plume-close:hover { background: #f0f0f0; }
+.plume-body { max-width: 1100px; margin: 0 auto; padding: 0 16px 16px; }
+
+/* ── Plume explorer cards ── */
+.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+.card h2 { font-size: 13px; margin-bottom: 8px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+.controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.control-group { display: flex; flex-direction: column; gap: 3px; }
+.control-group label { font-size: 11px; font-weight: 600; color: #555; }
+.control-group .value { font-size: 13px; font-weight: 700; color: #1a73e8; font-family: monospace; }
+.control-group input[type="range"] { width: 100%; accent-color: #1a73e8; }
+.control-group .range-labels { display: flex; justify-content: space-between; font-size: 9px; color: #999; }
+.plume-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+.plume-btn { padding: 5px 10px; font-size: 11px; border: 2px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; transition: all 0.15s; }
+.plume-btn:hover { border-color: #999; }
+.plume-btn.active { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; font-weight: 600; }
+.plume-info { font-size: 10px; color: #888; margin-top: 3px; }
+.canvas-wrap { text-align: center; }
+.canvas-wrap canvas { border: 1px solid #ddd; border-radius: 4px; background: #0a0a1a; display: block; margin: 0 auto; max-width: 100%; }
+.results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.result-box { text-align: center; padding: 10px; border-radius: 6px; }
+.result-box.transit { background: #f0f4ff; border: 1px solid #c4d7f5; }
+.result-box.dose { background: #f0fff4; border: 1px solid #b7e1c4; }
+.result-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.result-value { font-size: 20px; font-weight: 700; font-family: monospace; }
+.result-unit { font-size: 11px; color: #888; }
+.result-sub { font-size: 10px; color: #999; margin-top: 2px; }
+.path-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.path-table th { text-align: left; padding: 5px 6px; background: #f8f9fa; border-bottom: 2px solid #dee2e6; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+.path-table td { padding: 5px 6px; border-bottom: 1px solid #eee; }
+.path-table tr:hover { background: #f8f9fa; }
+.path-table .pathogen-name { font-weight: 600; }
+.path-table .strain { font-size: 9px; color: #888; display: block; }
+.path-table .medium-tag { font-size: 8px; padding: 1px 4px; border-radius: 3px; background: #e8f0fe; color: #1a73e8; }
+.path-table .k-val { font-family: monospace; color: #666; }
+.path-table .ref { font-size: 8px; color: #aaa; }
+.survival-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 160px; }
+.survival-bar-bg { flex: 1; height: 16px; background: #f0f0f0; border-radius: 3px; overflow: hidden; position: relative; }
+.survival-bar { height: 100%; border-radius: 3px; transition: width 0.3s ease; min-width: 1px; }
+.survival-pct { font-family: monospace; font-weight: 700; font-size: 11px; min-width: 48px; text-align: right; }
+.killed-pct { font-family: monospace; font-size: 10px; min-width: 50px; text-align: right; color: #666; }
+.physics-detail { font-size: 10px; color: #888; padding: 8px; background: #fafafa; border-radius: 4px; border: 1px solid #eee; }
+.physics-detail code { font-family: monospace; background: #f0f0f0; padding: 1px 3px; border-radius: 2px; }
+.source-note { font-size: 9px; color: #aaa; margin-top: 6px; line-height: 1.4; }
+.footer { text-align: center; font-size: 9px; color: #aaa; padding: 8px; }
+
+@media (max-width: 700px) {
+  .topbar { gap: 8px; }
+  .sidebar { width: 100%; }
+  .controls-grid { grid-template-columns: 1fr; }
+  .results-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ Top bar ══ -->
+<div class="topbar">
+  <h1>Far-UVC Coverage Explorer</h1>
+  <div class="sel-group">
+    <label>Room:</label>
+    <select id="roomSel">
+      <option value="10E">10E — Office (26'×48')</option>
+      <option value="10SE">10SE — Social (35.5'×14.2')</option>
+    </select>
+  </div>
+  <div class="sel-group" id="modeGroup" style="display:none;">
+    <label>TLV:</label>
+    <select id="modeSel">
+      <option value="8hr">8hr (standard)</option>
+      <option value="4hr">3hr stand / 6hr sit</option>
+    </select>
+  </div>
+  <div class="sel-group">
+    <label>Lamps:</label>
+    <select id="lampSel"></select>
+  </div>
+  <div class="sel-group">
+    <label>Height:</label>
+    <input type="range" id="heightSlider" min="1" max="7" step="0.5" value="5" style="width:100px;">
+    <span class="val" id="heightVal">5.0 ft</span>
+  </div>
+  <div class="spacer"></div>
+  <span style="font-size:10px;color:#888;" id="perfNote"></span>
+  <button class="load-toggle" id="loadToggle" onclick="toggleLoadPanel()">Custom config</button>
+</div>
+
+<!-- ══ Load panel (hidden by default) ══ -->
+<div id="loadPanel">
+  <div class="inner">
+    <textarea id="lampInput" placeholder='Paste: [[x,y,aim,tilt], ...] or results JSON'></textarea>
+    <button class="btn btn-primary" onclick="loadFromText()">Load</button>
+    <label class="file-label">Upload JSON<input type="file" id="fileInput" accept=".json" onchange="loadFromFile(event)"></label>
+    <span id="status"></span>
+  </div>
+</div>
+
+<!-- ══ Map + sidebar ══ -->
+<div class="map-area">
+  <div class="map-wrap" id="mapWrap">
+    <canvas id="mapCanvas"></canvas>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <div class="sidebar" id="sidebar">
+    <div>
+      <h3>Legend</h3>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(46,125,50,0.6)"></div> ≥2 µW/cm² — rapid inactivation</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(139,195,74,0.5)"></div> 1–2 µW/cm² — effective w/ mixing</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(255,235,59,0.4)"></div> 0.5–1 µW/cm² — marginal</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#fff;border:1px solid #ccc;"></div> &lt;0.5 µW/cm² — indirect only</div>
+      <div class="legend-item" id="legendBarrier" style="display:none;"><div class="legend-swatch" style="background:#B22222"></div> Barrier</div>
+      <div class="legend-item">★ → Lamp + aim direction</div>
+    </div>
+    <div id="stats" style="margin-top:10px;"></div>
+    <div class="safety-note" id="safetyNote">IES/ANSI eye TLV: 5.07 µW/cm² (8h continuous).<br>Optimizer targets peak &lt;5.0 µW/cm² with buffer.</div>
+    <div style="margin-top:10px;">
+      <h3>Lamp Positions</h3>
+      <table class="lamp-table" id="lampTable"><thead><tr><th>#</th><th>Position</th><th>Aim</th><th>Tilt</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Plume section ══ -->
+<div id="plumeSection">
+  <div class="plume-bar" onclick="closePlume()">
+    <span id="plumePosLabel">Plume Transit Explorer</span>
+    <button class="plume-close">Close</button>
+  </div>
+  <div class="plume-body">
+    <div class="card">
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+        <div style="flex:0 0 auto;">
+          <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Plume Type</label>
+          <div class="plume-buttons" id="plumeButtons">
+            <button class="plume-btn" data-type="quiet_breath" data-v="0.5" data-desc="Quiet breathing: ~0.5 m/s, continuous">Breathing</button>
+            <button class="plume-btn active" data-type="talk" data-v="1.5" data-desc="Talking: ~1.5 m/s, sustained directional">Talking</button>
+            <button class="plume-btn" data-type="loud_talk" data-v="3.5" data-desc="Loud talking / singing: ~3.5 m/s, sustained">Loud Talk</button>
+            <button class="plume-btn" data-type="cough" data-v="10" data-desc="Cough: ~10 m/s initial, decelerating turbulent puff">Cough</button>
+            <button class="plume-btn" data-type="sneeze" data-v="35" data-desc="Sneeze: ~35 m/s initial, rapid deceleration">Sneeze</button>
+          </div>
+          <div class="plume-info" id="plumeInfo">Talking: ~1.5 m/s, sustained directional</div>
+        </div>
+        <div class="control-group" style="flex:1;min-width:130px;">
+          <label>Distance</label>
+          <div class="value" id="distVal">6 ft (1.83 m)</div>
+          <input type="range" id="distSlider" min="1" max="20" step="0.5" value="6">
+          <div class="range-labels"><span>1 ft</span><span>20 ft</span></div>
+        </div>
+        <div class="control-group" style="flex:1;min-width:130px;">
+          <label>UV irradiance at midpoint</label>
+          <div class="value" id="irradVal">2.5 µW/cm²</div>
+          <input type="range" id="irradSlider" min="0" max="25" step="0.1" value="2.5">
+          <div class="range-labels"><span>0</span><span style="color:#c62828;">eye TLV ~5.6</span><span>25 µW/cm²</span></div>
+          <div style="font-size:8px;color:#999;margin-top:2px;">ACGIH 8hr eye TLV at 222nm ≈ 5.6 µW/cm²; skin ≈ 16.6 µW/cm²</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Plume Animation</h2>
+      <div class="canvas-wrap"><canvas id="scene" width="1060" height="280"></canvas></div>
+      <div class="results-grid" style="margin-top:10px;">
+        <div class="result-box transit">
+          <div class="result-label">Transit Time</div>
+          <div class="result-value" id="transitTime">1.22</div>
+          <div class="result-unit">seconds</div>
+          <div class="result-sub" id="transitSub">avg velocity: 1.50 m/s</div>
+        </div>
+        <div class="result-box dose">
+          <div class="result-label">UV Dose Received</div>
+          <div class="result-value" id="uvDose">0.305</div>
+          <div class="result-unit">µJ/cm²</div>
+          <div class="result-sub" id="doseSub">irradiance × transit time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pathogen Survival After Transit</h2>
+      <p style="font-size:10px;color:#888;margin-bottom:6px;">Using 222nm aerosol susceptibility data from guv-calcs (Belenky). Survival = (1-f)·e<sup>-k1·dose</sup> + f·e<sup>-k2·dose</sup></p>
+      <div style="overflow-x:auto;">
+      <table class="path-table" id="pathTable">
+        <thead><tr><th>Pathogen</th><th>k1 (cm²/mJ)</th><th>Biphasic</th><th>Medium</th><th style="min-width:180px">% Inactivated During Transit</th><th>Survival</th><th>Source</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card" id="interpretCard">
+      <h2>What does this mean for infection?</h2>
+      <div id="interpretPanel" style="font-size:11px;line-height:1.6;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Inactivation vs. UV Dose</h2>
+      <p style="font-size:10px;color:#888;margin-bottom:6px;">Dashed line shows the dose from the current plume transit.</p>
+      <canvas id="doseChart" width="1028" height="300" style="max-width:100%;"></canvas>
+    </div>
+
+    <div class="card" style="padding:10px;">
+      <div class="physics-detail">
+        <strong>Plume physics:</strong> For <strong>cough/sneeze</strong>: turbulent jet v(x) = V₀·(d₀/x), transit = (d²-d₀²)/(2·V₀·d₀). For <strong>breath/talking</strong>: transit ≈ d/V₀.
+        <br><strong>Survival:</strong> <code>S(dose) = (1-f)·exp(-k1·dose) + f·exp(-k2·dose)</code>, dose in mJ/cm².
+        <br><strong>UV dose:</strong> <code>irradiance(µW/cm²) × transit(s) / 1000</code> → mJ/cm².
+      </div>
+      <div class="source-note">
+        Pathogen data: <em>UVC Inactivation Constants</em> from <a href="https://github.com/jvbelenky/guv-calcs" target="_blank">guv-calcs</a> (Belenky).
+        Plume velocities: Gupta 2009, Bourouiba 2014, Abkarian 2020.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Far-UVC Coverage Explorer · Physics: OSLUV Aerolamp DevKit beam profile · Mount: 8.1 ft</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// ROOM DEFINITIONS
+// ═══════════════════════════════════════════════════════
+const ROOMS = {
+  "10E": {
+    label: "10E — Open Concept Office",
+    w: 26, h: 48, mountH: 8.1,
+    // Canvas: use a fixed width, compute height from aspect ratio
+    aspect: 48/26, // h/w
+    compassToMath: (aimC) => ((aimC+270)%360)*Math.PI/180,
+    yFlip: false, // ftY = MT + y*sy
+    barriers: [{y:17.75,x1:0,x2:8.76},{y:36.0,x1:0,x2:11.0}],
+    lampOptions: {
+      "11": {score:393.1, lamps:[[0.3,0.3,129.09894340213688,6],[0.3,17.750164917295088,129.757273681925,5],[0.4563784993586825,35.99949899360203,50.14478036337663,5],[25.7,12.943606707351362,211.56695429757917,2],[25.7,4.864298654997439,223.57289089743793,2],[25.7,39.54141464985766,327.51417092915864,4],[18.779119199095724,41.983844248988724,349.0916183315789,0],[25.7,47.7,308.45281102234566,6],[0.3,47.7,50.48226643282852,7],[24.868671211674066,0.3,233.26465394861552,5],[0.40253174332364416,15.453365163735187,57.55730371455473,5]]},
+      "14": {score:480.8, lamps:[[0.3,36.14835548578648,134.7625416735571,6],[0.3,17.925488855993994,123.17777790157513,2],[0.5343893904551865,7.614315422207636,127.71762243527293,1],[25.560871774114887,5.872036388033516,225.97742313895193,2],[25.7,0.3,238.56283033869593,5],[25.679872164856896,39.77806649530219,329.0868698042389,4],[25.7,12.940450444629725,208.73427604408494,0],[12.864906999595096,0.44927891976814766,184.76678196305457,0],[18.67931883547544,42.503574538936384,352.23720316638,0],[0.3009015468280188,31.92030742514525,38.847142332440825,4],[0.3,0.3,130.96464889523705,6],[2.2974451581059117,35.99956357689971,48.363614149419,5],[25.7,47.69911745271096,308.3604830373484,5],[11.675193224245033,41.69510012730297,17.711400303264735,1]]},
+      "18": {score:556.2, lamps:[[10.204438857095825,14.501840718656885,171.03681115402298,0],[19.314867946046206,18.07618633014776,334.16176333388574,0],[0.3,47.57748348019683,58.8379201918868,2],[25.7,0.3,238.9744956004747,1],[18.847795979065648,42.82127514696045,354.7424732232469,1],[5.135896328806738,17.749880383409703,34.14435363672809,3],[25.7,12.260557313362165,303.7729418380148,2],[25.414262164886022,38.17227824419679,221.5093314987855,3],[3.9870248461846223,35.997569003001864,45.99374616945342,3],[0.8435830254585129,16.642217131215865,29.29040018103436,6],[0.950123944949174,0.4666896733460348,117.71696811795022,0],[25.6988132838423,40.153550875320654,330.147045791315,2],[0.3,26.815112354314035,88.53358336533054,1],[0.31603355426209034,36.106610124992585,133.9987172706128,7],[21.035673895465198,13.468961771308075,202.87102013019089,1],[10.511950616237433,17.463037622400595,242.5654946521285,4],[25.7,16.73508529918156,209.94184836675575,1],[11.714741326391252,41.807048864885864,18.2017657376829,0]]}
+    }
+  },
+  "10SE": {
+    label: "10SE — Social / Meeting Area",
+    w: 35.5, h: 14.2, mountH: 8.1,
+    aspect: 14.2/35.5,
+    compassToMath: (aimC) => ((90-aimC)%360)*Math.PI/180,
+    yFlip: true, // ftY = MT + (ROOM_H-y)*sy
+    barriers: [],
+    lampOptions_8hr: {
+      "6": {score:95.6, lamps:[[33.209047844712,13.608602847392742,239.15184321637167,3],[0.7519803312037617,1.104031961804598,64.77141138827342,5],[35.2,13.290877402273463,206.4575655006657,4],[0.3,13.007452712603923,150.6263357448104,45],[16.67227278720933,5.208347847893367,78.47408587974876,1],[3.769394123449809,13.206285830497764,116.83084306161874,5]]},
+      "8": {score:133.0, lamps:[[16.05414843468708,10.50056794667892,103.50954892592425,0],[18.015914308090572,1.0661039093526234,58.32385408607725,0],[3.2885946613667785,13.47257130740351,119.16088234305379,5],[0.9103284133111793,0.3,70.63227113110257,5],[35.2,11.686325176857212,198.10410738111486,2],[34.46148632498301,13.564453518821537,239.7113423030382,1],[0.3,13.500152196360922,150.54458897347948,45],[0.3,6.490585135027938,90.98133612259413,0]]},
+      "10": {score:154.5, lamps:[[2.5787854654916504,7.068807983882839,91.27064758476182,0],[19.298539236303192,0.3071774055836698,53.53279888692043,0],[0.3,0.9081766276141656,22.494374233914716,45],[34.9389776801794,13.710950647522255,235.42230205914902,0],[4.739073160764404,13.861533167785936,119.59406896936935,4],[3.4903154971662578,0.3,70.7518929999058,4],[17.845348485179567,13.406526972753241,115.18103431002447,0],[35.19606884799007,11.725585621332373,194.72376029268753,1],[23.414825377193946,0.40335919921597585,300.3858602945903,0],[0.3,13.580997835202572,156.9178429068686,45]]}
+    },
+    lampOptions_4hr: {
+      "6": {score:230.3, lamps:[[18.43266645876236,8.896445990757083,103.7046146796724,12],[32.979329555161996,9.566894989761632,253.16585525932229,12],[19.409886399814116,2.8310947646910516,63.053692286132566,12],[22.59867557023502,13.899999999999999,151.43129428410177,12],[0.7171469814813782,7.4007980577570756,96.01546753592953,36],[32.95479947763596,4.795752426815302,284.8822313033949,12]]},
+      "8": {score:297.3, lamps:[[1.9998397567618194,6.776784376574914,90.03955718328152,40],[33.25147504748882,6.813289700424363,271.75546965206206,12],[20.786656489756332,13.140608418162884,131.96885457545707,12],[17.713516105425107,8.452709674075717,100.54371025146914,12],[1.9998917955067528,8.861670977009279,117.50488994776576,43],[32.38493019210527,10.634713154171946,251.60215574755804,12],[19.56155119873589,2.7858819175755074,68.03550307434783,12],[32.115693119877584,3.951847256684718,285.7052557363573,12]]},
+      "10": {score:355.2, lamps:[[1.6366426912469376,11.555904741097567,121.20522303939396,41],[28.33292980999892,12.229569170657312,240.80146689803215,12],[18.417979738638707,6.712767340309631,88.31172796078724,12],[1.9963795297639753,9.00453879771581,108.72185552482335,37],[32.45341613978594,3.6751691352182534,291.3891288761328,12],[33.20086135876067,8.791369510451549,256.9917517316346,12],[1.509140185639297,2.632075974343426,69.0934185329285,36],[31.629507915794377,12.263881206219176,237.27272510117592,12],[21.06263398573219,2.699846365079773,73.35821950550347,12],[1.9440080583650277,5.074829157369472,85.06509769684666,36]]}
+    },
+    lampOptions: {} // set dynamically
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const FT2M = 0.3048;
+const THETA_RAD = [0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90].map(d=>d*Math.PI/180);
+const I_MWSR = [94.5,93.7,91.8,89.3,85.8,77.0,60.5,34.2,14.0,5.1,2.1,0.9,0.65,0.6,0.4,0.3,0.2,0.1,0.0];
+
+let currentRoom = "10E";
+let currentLampKey = "11";
+let currentMode = "8hr";
+let lamps = [];
+let evalHeight = 5.0;
+let heatmapData = null;
+let clickMarker = null;
+let isCustomConfig = false;
+
+// Resolve lampOptions for rooms with multiple modes
+function getActiveLampOptions() {
+  const room = ROOMS[currentRoom];
+  if (room.lampOptions_8hr) {
+    return currentMode === '4hr' ? room.lampOptions_4hr : room.lampOptions_8hr;
+  }
+  return room.lampOptions;
+}
+
+// Canvas geometry (recomputed on room switch)
+// 10E (portrait): target ~500px wide so the tall canvas isn't huge
+// 10SE (landscape): target ~1100px wide to fill the page
+let CW, CH, ML=30, MT=30, MR=15, MB=30, PW, PH, sxMap, syMap;
+
+function recomputeCanvasGeom() {
+  const room = ROOMS[currentRoom];
+  // Pick canvas width based on room orientation
+  const targetW = room.aspect > 1 ? 500 : 1100; // portrait vs landscape
+  CW = targetW;
+  PW = CW - ML - MR;
+  PH = Math.round(PW * room.aspect);
+  CH = PH + MT + MB;
+  sxMap = PW / room.w;
+  syMap = PH / room.h;
+}
+
+function ftX(x) { return ML + x * sxMap; }
+function ftY(y) {
+  const room = ROOMS[currentRoom];
+  return room.yFlip ? MT + (room.h - y) * syMap : MT + y * syMap;
+}
+function pxToFt(px, py) {
+  const room = ROOMS[currentRoom];
+  const x = (px - ML) / sxMap;
+  const y = room.yFlip ? room.h - (py - MT) / syMap : (py - MT) / syMap;
+  return [x, y];
+}
+
+// ═══════════════════════════════════════════════════════
+// PHYSICS
+// ═══════════════════════════════════════════════════════
+function interp(x,xs,ys){if(x<=xs[0])return ys[0];if(x>=xs[xs.length-1])return ys[ys.length-1];for(let i=0;i<xs.length-1;i++){if(x>=xs[i]&&x<=xs[i+1]){const t=(x-xs[i])/(xs[i+1]-xs[i]);return ys[i]+t*(ys[i+1]-ys[i]);}}return 0;}
+
+function irrOneLamp(lx,ly,aimC,tilt,px,py,ph) {
+  const room = ROOMS[currentRoom];
+  const ar = room.compassToMath(aimC), tr = tilt*Math.PI/180;
+  const bx=Math.cos(ar)*Math.cos(tr), by=Math.sin(ar)*Math.cos(tr), bz=-Math.sin(tr);
+  const vx=px-lx, vy=py-ly, vz=ph-room.mountH;
+  let d=Math.sqrt(vx*vx+vy*vy+vz*vz); if(d<0.1)d=0.1;
+  const dm=d*FT2M, ct=Math.min(1,Math.max(-1,(vx*bx+vy*by+vz*bz)/d));
+  if(ct<0) return 0;
+  const I=Math.max(0,interp(Math.acos(ct),THETA_RAD,I_MWSR));
+  let E=0.1*I/(dm*dm);
+  for(const b of room.barriers) {
+    if((ly<b.y)!==(py<b.y)) {
+      const dv=py-ly; const t2=dv===0?0:(b.y-ly)/dv; const xc=lx+t2*(px-lx);
+      if(xc>=b.x1&&xc<=b.x2){E=0;break;}
+    }
+  }
+  return E;
+}
+
+function irrAllLamps(px,py,ph) { return lamps.map(([lx,ly,a,t])=>irrOneLamp(lx,ly,a,t,px,py,ph)); }
+
+// ═══════════════════════════════════════════════════════
+// FLOOR PLAN DRAWING
+// ═══════════════════════════════════════════════════════
+function drawRect(ctx,x,y,w,h,fill,stroke,lw) {
+  const room = ROOMS[currentRoom];
+  let px, py, pw, ph2;
+  if (room.yFlip) {
+    px=ftX(x); py=ftY(y+h); pw=w*sxMap; ph2=h*syMap;
+  } else {
+    px=ftX(x); py=ftY(y); pw=w*sxMap; ph2=h*syMap;
+  }
+  if(fill){ctx.fillStyle=fill;ctx.fillRect(px,py,pw,ph2);}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||0.8;ctx.strokeRect(px,py,pw,ph2);}
+}
+
+function drawDesk(ctx,x,y,w,h,label,col) {
+  drawRect(ctx,x,y,w,h,col||'rgba(255,214,153,0.85)','#555',0.8);
+  ctx.fillStyle='#333';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+  ctx.fillText(label,ftX(x+w/2),ftY(y+h/2)+3);
+}
+
+function drawFloorPlan10E_Bg(ctx) {
+  const ROOM_W=26,ROOM_H=48,WT_Y=36,WIL=11;
+  drawRect(ctx,0,0,ROOM_W,ROOM_H,'#fff','#333',2);
+  ctx.strokeStyle='#4a90d9';ctx.lineWidth=3;ctx.setLineDash([6,3]);
+  ctx.beginPath();ctx.moveTo(ftX(ROOM_W),ftY(0));ctx.lineTo(ftX(ROOM_W),ftY(ROOM_H));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.save();ctx.translate(ftX(ROOM_W)-4,ftY(ROOM_H/2));ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#4a90d9';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText('E window',0,0);
+  ctx.restore();
+  drawRect(ctx,0,WT_Y,WIL,ROOM_H-WT_Y,'rgba(212,196,168,0.3)','rgba(184,168,138,0.5)',0.6);
+}
+
+function drawFloorPlan10E_Fg(ctx) {
+  const ROOM_W=26,ROOM_H=48,WT_Y=36,WIL=11;
+  const _I=1/12,DE=27*_I,DN=44*_I,DER=44*_I,DNR=27*_I,GAP=0.08/FT2M,CS=4;
+  const C1Ax=CS,C1Bx=CS+DE+GAP,C1e=C1Bx+DE;
+  const E1x=C1Ax+(C1e-C1Ax-DER)/2,E1y=2*(DN+GAP);
+  const NEx=ROOM_W-DE-0.15/FT2M;
+  const C2Ax=C1e+((NEx-C1e)-(2*DE+GAP))/2,C2Bx=C2Ax+DE+GAP;
+  const C4x=CS,C4y=17.75,C5y=5.8/FT2M;
+  const C5EFx=ROOM_W-DER-0.15/FT2M,C5CDx=C5EFx-DER-GAP;
+  const F2y=ROOM_H-DN-0.05/FT2M,F1y=F2y-DN-GAP,Fx=ROOM_W-DE-0.15/FT2M;
+  const C6r2y=F1y-6-DNR,C6r1y=C6r2y-DNR-GAP;
+  const C6EFx=ROOM_W-DER-0.15/FT2M,C6CDx=C6EFx-DER-GAP,C6ABx=C6CDx-DER-GAP;
+  const F3x=(17-0.5)-DER,F3y=ROOM_H-DNR;
+  const SOFA_D=0.65/FT2M,SOFA_L=1.7/FT2M;
+  const ES_x=WIL-SOFA_D,ES_y=ROOM_H-SOFA_L;
+  const NS_x=ES_x-SOFA_L,NS_y=WT_Y;
+  const wpCx=CS+DE-2/3+1;
+
+  ctx.strokeStyle='#333';ctx.lineWidth=2;
+  ctx.strokeRect(ftX(0),ftY(0),PW,PH);
+
+  ctx.fillStyle='#8B7D6B';ctx.font='italic 13px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Rug',ftX(WIL/2),ftY(42));
+
+  // Doors
+  const da=30;
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(12.75));ctx.lineTo(ftX(0),ftY(15.75));ctx.stroke();
+  ctx.strokeStyle='#999';ctx.lineWidth=0.6;ctx.setLineDash([3,3]);
+  for(let a=0;a<=da;a++){const t=a/da*Math.PI/2;if(a===0){ctx.beginPath();ctx.moveTo(ftX(-3*Math.sin(t)),ftY(15.75-3*Math.cos(t)));}else ctx.lineTo(ftX(-3*Math.sin(t)),ftY(15.75-3*Math.cos(t)));}ctx.stroke();ctx.setLineDash([]);
+
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(32));ctx.lineTo(ftX(0),ftY(35));ctx.stroke();
+  ctx.strokeStyle='#999';ctx.lineWidth=0.6;ctx.setLineDash([3,3]);
+  for(let a=0;a<=da;a++){const t=a/da*Math.PI/2;if(a===0){ctx.beginPath();ctx.moveTo(ftX(-3*Math.sin(t)),ftY(35-3*Math.cos(t)));}else ctx.lineTo(ftX(-3*Math.sin(t)),ftY(35-3*Math.cos(t)));}ctx.stroke();ctx.setLineDash([]);
+
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(ftX(17),ftY(ROOM_H));ctx.lineTo(ftX(23),ftY(ROOM_H));ctx.stroke();
+  ctx.strokeStyle='#999';ctx.lineWidth=0.6;ctx.setLineDash([3,3]);
+  for(let a=0;a<=da;a++){const t=a/da*Math.PI/2;if(a===0){ctx.beginPath();ctx.moveTo(ftX(20-3*Math.sin(t)),ftY(ROOM_H+3*Math.cos(t)));}else ctx.lineTo(ftX(20-3*Math.sin(t)),ftY(ROOM_H+3*Math.cos(t)));}ctx.stroke();
+  for(let a=0;a<=da;a++){const t=a/da*Math.PI/2;if(a===0){ctx.beginPath();ctx.moveTo(ftX(20+3*Math.sin(t)),ftY(ROOM_H+3*Math.cos(t)));}else ctx.lineTo(ftX(20+3*Math.sin(t)),ftY(ROOM_H+3*Math.cos(t)));}ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#888';ctx.font='italic 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Double doors → 10SE',ftX(20),ftY(ROOM_H)+18);
+
+  // A/V screen
+  ctx.strokeStyle='#555';ctx.lineWidth=3;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(ftX(16),ftY(0));ctx.lineTo(ftX(22),ftY(0));ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='italic 10px sans-serif';ctx.fillText('A/V screen',ftX(19),ftY(0)-5);
+
+  // Rug
+  drawRect(ctx,0,WT_Y,WIL,ROOM_H-WT_Y,'rgba(212,196,168,0.3)','rgba(184,168,138,0.5)',0.6);
+
+  // Wall partition
+  ctx.strokeStyle='#888';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(WT_Y));ctx.lineTo(ftX(WIL),ftY(WT_Y));ctx.stroke();
+  ctx.strokeStyle='#bbb';ctx.lineWidth=0.8;ctx.setLineDash([2,4]);
+  ctx.beginPath();ctx.moveTo(ftX(WIL),ftY(WT_Y));ctx.lineTo(ftX(ROOM_W),ftY(WT_Y));ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Sofas
+  drawRect(ctx,NS_x,NS_y,SOFA_L,SOFA_D,'rgba(160,147,125,0.6)','#6B5E4F',0.6);
+  ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Sofa',ftX(NS_x+SOFA_L/2),ftY(NS_y+SOFA_D/2)+3);
+  drawRect(ctx,ES_x,ES_y,SOFA_D,SOFA_L,'rgba(160,147,125,0.6)','#6B5E4F',0.6);
+
+  // Coffee/tea
+  const TBw=0.5/FT2M,TBh=1.2/FT2M,TBy=WT_Y+1/FT2M;
+  drawRect(ctx,0.05/FT2M,TBy,TBw,TBh,'rgba(196,168,130,0.7)','#8B7355',0.6);
+
+  // Fridge
+  const Fw=0.6/FT2M,Fh=0.5/FT2M;
+  drawRect(ctx,0.05/FT2M,ROOM_H-Fh-0.05/FT2M,Fw,Fh,'#B0B0B0','#666',0.6);
+  ctx.fillStyle='#333';ctx.font='8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Fridge',ftX(Fw/2),ftY(ROOM_H-Fh/2-0.05/FT2M)+3);
+
+  // Plants/dividers
+  const divEnd=C4x+2*DE+GAP;
+  ctx.strokeStyle='#6B8E23';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(C4y));ctx.lineTo(ftX(divEnd),ftY(C4y));ctx.stroke();
+  for(let px=0.3;px<divEnd;px+=(divEnd-0.6)/4){ctx.fillStyle='#228B22';ctx.beginPath();ctx.arc(ftX(px),ftY(C4y),3,0,Math.PI*2);ctx.fill();}
+
+  // Barriers
+  ctx.strokeStyle='#B22222';ctx.lineWidth=3;
+  ROOMS[currentRoom].barriers.forEach(b=>{ctx.beginPath();ctx.moveTo(ftX(b.x1),ftY(b.y));ctx.lineTo(ftX(b.x2),ftY(b.y));ctx.stroke();});
+
+  // Pillars
+  drawRect(ctx,wpCx-1,15.75,2,2,'rgba(153,153,153,0.6)','#666',1);
+  drawRect(ctx,ROOM_W-1.5,13.35,1.5,1.3,'rgba(153,153,153,0.6)','#666',1);
+
+  // Desks
+  drawDesk(ctx,C1Ax,0,DE,DN,'A');drawDesk(ctx,C1Bx,0,DE,DN,'B');
+  drawDesk(ctx,C1Ax,DN+GAP,DE,DN,'C');drawDesk(ctx,C1Bx,DN+GAP,DE,DN,'D');
+  drawDesk(ctx,E1x,E1y,DER,DNR,'E');
+  ctx.fillStyle='#555';ctx.font='bold 15px sans-serif';ctx.textAlign='center';
+  ctx.fillText('1',ftX((C1Ax+C1e)/2),ftY(-0.3));
+
+  [['A','B'],['C','D'],['E','F']].forEach(([a,b],i)=>{const py=i*(DN+GAP);drawDesk(ctx,C2Ax,py,DE,DN,a);drawDesk(ctx,C2Bx,py,DE,DN,b);});
+  ctx.fillText('2',ftX((C2Ax+C2Bx+DE)/2),ftY(-0.3));
+
+  ['A','B','C'].forEach((d,i)=>drawDesk(ctx,NEx,i*(DN+GAP),DE,DN,d));
+  ctx.fillText('3',ftX(NEx+DE/2),ftY(-0.3));
+
+  [['A','B'],['C','D'],['E','F']].forEach(([a,b],i)=>{const py=C4y+i*(DN+GAP);drawDesk(ctx,C4x,py,DE,DN,a);drawDesk(ctx,C4x+DE+GAP,py,DE,DN,b);});
+  ctx.fillText('4',ftX(C4x+DE+GAP/2),ftY(C4y-0.3));
+
+  [[C5CDx,'C','D'],[C5EFx,'E','F']].forEach(([cx,n,s])=>{drawDesk(ctx,cx,C5y,DER,DNR,n);drawDesk(ctx,cx,C5y+DNR+GAP,DER,DNR,s);});
+  ctx.fillText('5',ftX(C5CDx+DER/2),ftY(C5y-0.3));
+
+  [[C6ABx,'A','B'],[C6CDx,'C','D'],[C6EFx,'E','F']].forEach(([cx,n,s])=>{drawDesk(ctx,cx,C6r1y,DER,DNR,n);drawDesk(ctx,cx,C6r2y,DER,DNR,s);});
+  ctx.fillText('6',ftX(C6CDx+DER/2),ftY(C6r1y-0.3));
+
+  drawDesk(ctx,Fx,F1y,DE,DN,'F1','rgba(255,179,71,0.85)');
+  drawDesk(ctx,Fx,F2y,DE,DN,'F2','rgba(255,179,71,0.85)');
+  drawDesk(ctx,F3x,F3y,DER,DNR,'F3','rgba(255,179,71,0.85)');
+}
+
+function drawFloorPlan10SE_Bg(ctx) {
+  const ROOM_W=35.5,ROOM_H=14.2;
+  ctx.fillStyle='#fff';ctx.fillRect(ftX(0),ftY(ROOM_H),PW,PH);
+  ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.strokeRect(ftX(0),ftY(ROOM_H),PW,PH);
+  ctx.strokeStyle='#4a90d9';ctx.lineWidth=3;ctx.setLineDash([6,3]);
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(0));ctx.lineTo(ftX(ROOM_W),ftY(0));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#4a90d9';ctx.font='9px sans-serif';ctx.textAlign='center';
+  ctx.fillText('SOUTH WALL (windows)',ftX(ROOM_W/2),ftY(0)+14);
+  ctx.strokeStyle='#4a90d9';ctx.lineWidth=3;ctx.setLineDash([6,3]);
+  ctx.beginPath();ctx.moveTo(ftX(ROOM_W),ftY(0));ctx.lineTo(ftX(ROOM_W),ftY(ROOM_H));ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#888';ctx.font='9px sans-serif';ctx.textAlign='center';
+  ctx.fillText('NORTH WALL (interior)',ftX(ROOM_W/2),ftY(ROOM_H)-5);
+  drawRect(ctx,2,2.5,15,9,'rgba(232,220,200,0.4)','rgba(196,180,152,0.5)',0.6);
+}
+
+function drawFloorPlan10SE_Fg(ctx) {
+  const ROOM_W=35.5,ROOM_H=14.2;
+  ctx.strokeStyle='#333';ctx.lineWidth=2;ctx.strokeRect(ftX(0),ftY(ROOM_H),PW,PH);
+  // Double doors
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(ftX(27),ftY(ROOM_H));ctx.lineTo(ftX(32.5),ftY(ROOM_H));ctx.stroke();
+  ctx.fillStyle='#888';ctx.font='8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Double Doors',ftX(29.75),ftY(ROOM_H)-5);
+  // Hallway
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(ftX(0),ftY(ROOM_H-2.5));ctx.lineTo(ftX(0),ftY(ROOM_H));ctx.stroke();
+  ctx.fillStyle='#777';ctx.font='italic 7px sans-serif';ctx.textAlign='right';
+  ctx.fillText('← Hallway',ftX(0)-3,ftY(ROOM_H-1.25));
+  // TV
+  drawRect(ctx,0.05,6,0.3,2.4,'#555','#333',0.8);
+  ctx.fillStyle='#333';ctx.font='bold 9px sans-serif';ctx.textAlign='center';
+  ctx.fillText('TV',ftX(1),ftY(7.2));
+  // Whiteboard
+  drawRect(ctx,8,ROOM_H-0.25,4.5,0.2,'#666','#444',0.8);
+  ctx.fillStyle='#777';ctx.font='7px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Whiteboard',ftX(10.2),ftY(ROOM_H-0.5));
+  // Couches
+  drawRect(ctx,7,0.5,7,2.5,'#c4a87a','#a08860',1.2);
+  ctx.fillStyle='#444';ctx.font='8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Couch (back to S)',ftX(10.5),ftY(1.75));
+  drawRect(ctx,15.5,3.6,2.5,7,'#c4a87a','#a08860',1.2);
+  ctx.fillStyle='#444';ctx.font='8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Couch',ftX(16.75),ftY(7.5));
+  // Dining table
+  ctx.fillStyle='rgba(212,196,160,0.8)';ctx.strokeStyle='#a08860';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(ftX(25.9),ftY(7.1),2.5*sxMap,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#555';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Dining',ftX(25.9),ftY(7.5));ctx.fillText('Table',ftX(25.9),ftY(6.5));
+  // Chairs
+  for(let i=0;i<10;i++){const a=2*Math.PI*i/10+Math.PI/10;const cx=25.9+3.8*Math.cos(a),cy=7.1+3.8*Math.sin(a);drawRect(ctx,cx-0.45,cy-0.45,0.9,0.9,'#c4a87a','#a08860',0.8);}
+  // Desks
+  drawRect(ctx,33.8,0,1.7,3.8,'#f0b860','#c09030',1.5);
+  drawRect(ctx,33.8,4.8,1.7,3.5,'#f0b860','#c09030',1.5);
+  ctx.fillStyle='#555';ctx.font='bold 8px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Desks +',ftX(34.6),ftY(9.8));ctx.fillText('Monitors',ftX(34.6),ftY(9.2));
+  // Rug
+  ctx.fillStyle='#8B7D6B';ctx.font='italic 11px sans-serif';ctx.textAlign='center';
+  ctx.fillText('Rug',ftX(9),ftY(7));
+}
+
+// ═══════════════════════════════════════════════════════
+// GENERIC DRAWING
+// ═══════════════════════════════════════════════════════
+function aimStr(a) {
+  const n={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'};
+  for(const[k,v]of Object.entries(n)){if(Math.abs(((a-k+180)%360)-180)<3)return v;}
+  return a.toFixed(0)+'°';
+}
+
+function drawLamps(ctx) {
+  const room = ROOMS[currentRoom];
+  lamps.forEach(([x,y,aim,tilt],i)=>{
+    const len = currentRoom==='10SE' ? 1.5 : 2;
+    const dx=len*Math.sin(aim*Math.PI/180);
+    const dy_room = (room.yFlip ? 1 : -1) * len*Math.cos(aim*Math.PI/180);
+    // Arrow
+    ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room*(room.yFlip?1:-1)));ctx.stroke();
+    ctx.strokeStyle='#c62828';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(ftX(x),ftY(y));ctx.lineTo(ftX(x+dx),ftY(y+dy_room*(room.yFlip?1:-1)));ctx.stroke();
+    // Compute end point for arrowhead
+    const endX = ftX(x+dx), endY = ftY(y+dy_room*(room.yFlip?1:-1));
+    const startX = ftX(x), startY = ftY(y);
+    const ang = Math.atan2(endY-startY, endX-startX);
+    ctx.beginPath();ctx.moveTo(endX,endY);
+    ctx.lineTo(endX-12*Math.cos(ang-0.35),endY-12*Math.sin(ang-0.35));
+    ctx.lineTo(endX-12*Math.cos(ang+0.35),endY-12*Math.sin(ang+0.35));
+    ctx.closePath();ctx.fillStyle='#c62828';ctx.fill();
+    // Star
+    ctx.font='20px sans-serif';ctx.textAlign='center';ctx.fillStyle='#c62828';
+    ctx.fillText('★',ftX(x),ftY(y)+6);
+    // Label
+    const label=`L${i+1}`;
+    ctx.font='bold 10px sans-serif';ctx.fillStyle='#c62828';
+    const lw2=ctx.measureText(label).width;
+    let lx2=ftX(x)+12,ly2=ftY(y)-5;
+    if(lx2+lw2>ML+PW-3)lx2=ftX(x)-lw2-12;
+    if(lx2<ML+3)lx2=ML+3;
+    if(ly2<MT+10)ly2=MT+10;
+    if(ly2>MT+PH-3)ly2=MT+PH-3;
+    ctx.textAlign='left';
+    ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=3;
+    ctx.strokeText(label,lx2,ly2);ctx.fillText(label,lx2,ly2);
+  });
+}
+
+function computeHeatmap() {
+  const room = ROOMS[currentRoom];
+  const res=250;
+  const data=new Float32Array(res*res);
+  for(let j=0;j<res;j++){for(let i=0;i<res;i++){
+    const px=(i+.5)/res*room.w, py=(j+.5)/res*room.h;
+    let tot=0;
+    for(const[lx,ly,aim,tilt]of lamps) tot+=irrOneLamp(lx,ly,aim,tilt,px,py,evalHeight);
+    data[j*res+i]=tot;
+  }}
+  return{data,res};
+}
+
+function drawHeatmap(ctx) {
+  if(!heatmapData||lamps.length===0)return;
+  const room = ROOMS[currentRoom];
+  const{data,res}=heatmapData;
+  const cw=PW/res, ch=PH/res;
+  for(let j=0;j<res;j++){for(let i=0;i<res;i++){
+    const v=data[j*res+i]; let c;
+    if(v>=2) c='rgba(46,125,50,0.55)';
+    else if(v>=1) c='rgba(139,195,74,0.45)';
+    else if(v>=0.5) c='rgba(255,235,59,0.35)';
+    else continue;
+    ctx.fillStyle=c;
+    if(room.yFlip) {
+      ctx.fillRect(ML+i*cw, MT+(res-1-j)*ch, cw+.5, ch+.5);
+    } else {
+      ctx.fillRect(ML+i*cw, MT+j*ch, cw+.5, ch+.5);
+    }
+  }}
+}
+
+function updateLampTable() {
+  const room = ROOMS[currentRoom];
+  const tb=document.querySelector('#lampTable tbody');tb.innerHTML='';
+  lamps.forEach(([x,y,aim,tilt],i)=>{
+    let loc;
+    const edge = currentRoom==='10SE' ? 0.3 : 0.5;
+    if(y<edge)loc=currentRoom==='10SE'?`S wall, x=${x.toFixed(1)}'`:`N wall, x=${x.toFixed(1)}'`;
+    else if(y>room.h-edge)loc=currentRoom==='10SE'?`N wall, x=${x.toFixed(1)}'`:`S wall, x=${x.toFixed(1)}'`;
+    else if(x<edge)loc=`W wall, y=${y.toFixed(1)}'`;
+    else if(x>room.w-edge)loc=`E wall, y=${y.toFixed(1)}'`;
+    else loc=`(${x.toFixed(1)}', ${y.toFixed(1)}')`;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>L${i+1}</td><td>${loc}</td><td>${aimStr(aim)}</td><td>${tilt.toFixed(0)}°</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// Sample average irradiance at specific points in a zone
+function zoneAvg(points, height) {
+  if (lamps.length === 0) return 0;
+  let sum = 0;
+  for (const [px, py] of points) {
+    for (const [lx, ly, a, t] of lamps) sum += irrOneLamp(lx, ly, a, t, px, py, height);
+  }
+  return sum / points.length;
+}
+
+// Generate a grid of sample points within a rectangle
+function rectGrid(x1, y1, x2, y2, step) {
+  const pts = [];
+  for (let x = x1 + step/2; x < x2; x += step)
+    for (let y = y1 + step/2; y < y2; y += step) pts.push([x, y]);
+  return pts.length > 0 ? pts : [[( x1+x2)/2, (y1+y2)/2]];
+}
+
+// 10E zone definitions
+function get10EZones() {
+  const _I=1/12, DE=27*_I, DN=44*_I, DER=44*_I, DNR=27*_I, GAP=0.08/FT2M, CS=4;
+  const C1Ax=CS, C1Bx=CS+DE+GAP, C1e=C1Bx+DE;
+  const E1x=C1Ax+(C1e-C1Ax-DER)/2, E1y=2*(DN+GAP);
+  const NEx=26-DE-0.15/FT2M;
+  const C2Ax=C1e+((NEx-C1e)-(2*DE+GAP))/2, C2Bx=C2Ax+DE+GAP;
+  const C4x=CS, C4y=17.75, C5y=5.8/FT2M;
+  const C5EFx=26-DER-0.15/FT2M, C5CDx=C5EFx-DER-GAP;
+  const F2y=48-DN-0.05/FT2M, F1y=F2y-DN-GAP, Fx=26-DE-0.15/FT2M;
+  const C6r2y=F1y-6-DNR, C6r1y=C6r2y-DNR-GAP;
+  const C6EFx=26-DER-0.15/FT2M, C6CDx=C6EFx-DER-GAP, C6ABx=C6CDx-DER-GAP;
+  const F3x=(17-0.5)-DER, F3y=48-DNR;
+  // Collect all desk center points
+  const deskPts = [];
+  // Cluster 1 (A-E)
+  deskPts.push([C1Ax+DE/2, DN/2],[C1Bx+DE/2, DN/2]);
+  deskPts.push([C1Ax+DE/2, DN+GAP+DN/2],[C1Bx+DE/2, DN+GAP+DN/2]);
+  deskPts.push([E1x+DER/2, E1y+DNR/2]);
+  // Cluster 2 (A-F)
+  for(let i=0;i<3;i++){deskPts.push([C2Ax+DE/2, i*(DN+GAP)+DN/2],[C2Bx+DE/2, i*(DN+GAP)+DN/2]);}
+  // Cluster 3 (A-C)
+  for(let i=0;i<3;i++) deskPts.push([NEx+DE/2, i*(DN+GAP)+DN/2]);
+  // Cluster 4 (A-F)
+  for(let i=0;i<3;i++){deskPts.push([C4x+DE/2, C4y+i*(DN+GAP)+DN/2],[C4x+DE+GAP+DE/2, C4y+i*(DN+GAP)+DN/2]);}
+  // Cluster 5 (C-F)
+  deskPts.push([C5CDx+DER/2, C5y+DNR/2],[C5CDx+DER/2, C5y+DNR+GAP+DNR/2]);
+  deskPts.push([C5EFx+DER/2, C5y+DNR/2],[C5EFx+DER/2, C5y+DNR+GAP+DNR/2]);
+  // Cluster 6 (A-F)
+  deskPts.push([C6ABx+DER/2, C6r1y+DNR/2],[C6ABx+DER/2, C6r2y+DNR/2]);
+  deskPts.push([C6CDx+DER/2, C6r1y+DNR/2],[C6CDx+DER/2, C6r2y+DNR/2]);
+  deskPts.push([C6EFx+DER/2, C6r1y+DNR/2],[C6EFx+DER/2, C6r2y+DNR/2]);
+  // F desks
+  deskPts.push([Fx+DE/2, F1y+DN/2],[Fx+DE/2, F2y+DN/2],[F3x+DER/2, F3y+DNR/2]);
+
+  // Rug area: x=0..11, y=36..48
+  const rugPts = rectGrid(0.5, 36.5, 10.5, 47.5, 2);
+  // Inter-desk aisles: the walkways between desk clusters
+  const aislePts = [];
+  // N-S aisle between C1/C2 and C3 at x~NEx-1
+  for(let y=1;y<17;y+=2) aislePts.push([C1e+1, y]);
+  // E-W aisle between C1-3 (north) and C4 (south of barrier at 17.75)
+  for(let x=5;x<25;x+=3) aislePts.push([x, 16]);
+  // Central corridor south of barrier
+  for(let y=20;y<35;y+=3) aislePts.push([13, y]);
+  // Aisle near C6/F desks
+  for(let y=36;y<47;y+=2) aislePts.push([16, y]);
+
+  return [
+    { name: 'Desks (seated)', points: deskPts, height: 4.0 },
+    { name: 'Rug area', points: rugPts, height: evalHeight },
+    { name: 'Aisles/walkways', points: aislePts, height: evalHeight },
+  ];
+}
+
+// 10SE zone definitions
+function get10SEZones() {
+  // Rug area: x=2..17, y=2.5..11.5
+  const rugSitPts = rectGrid(3, 3, 16, 11, 2.5);
+  const rugStandPts = rugSitPts; // same XY, different height
+  // Couches: S couch x=7..14, y=0.5..3; E couch x=15.5..18, y=3.6..10.6
+  const sCouchPts = rectGrid(7.5, 1, 13.5, 2.5, 2);
+  const eCouchPts = rectGrid(16, 4, 17.5, 10, 2);
+  const couchPts = sCouchPts.concat(eCouchPts);
+  // Dining chairs: 10 chairs around (25.9, 7.1) at r=3.8
+  const chairPts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = 2*Math.PI*i/10 + Math.PI/10;
+    chairPts.push([25.9 + 3.8*Math.cos(a), 7.1 + 3.8*Math.sin(a)]);
+  }
+  // Desks: x=33.8..35.5, y=0..3.8 and y=4.8..8.3
+  const deskPts = [[34.6, 1.9], [34.6, 6.5]];
+
+  return [
+    { name: 'Rug (sitting)', points: rugSitPts, height: 3.5 },
+    { name: 'Rug (standing)', points: rugStandPts, height: 5.5 },
+    { name: 'Couches', points: couchPts, height: 3.5 },
+    { name: 'Dining chairs', points: chairPts, height: 5.0 },
+    { name: 'Desks (seated)', points: deskPts, height: 4.0 },
+  ];
+}
+
+function updateStats() {
+  if(!heatmapData)return;
+  const room=ROOMS[currentRoom];
+  const{data,res}=heatmapData;
+  const area=room.w*room.h, pa=area/(res*res);
+  let a05=0,a10=0,a20=0,peak=0;
+  for(let k=0;k<data.length;k++){if(data[k]>=.5)a05+=pa;if(data[k]>=1)a10+=pa;if(data[k]>=2)a20+=pa;if(data[k]>peak)peak=data[k];}
+
+  let html = `<h3>Coverage</h3>
+    <div>Peak: <b>${peak.toFixed(2)} µW/cm²</b></div>
+    <div>≥2.0: <b>${a20.toFixed(0)} ft²</b> (${(100*a20/area).toFixed(0)}%)</div>
+    <div>≥1.0: <b>${a10.toFixed(0)} ft²</b> (${(100*a10/area).toFixed(0)}%)</div>
+    <div>≥0.5: <b>${a05.toFixed(0)} ft²</b> (${(100*a05/area).toFixed(0)}%)</div>
+    <div style="font-size:10px;color:#888;margin-top:4px;">${evalHeight.toFixed(1)}ft · ${lamps.length} lamps</div>`;
+
+  // Zone-specific averages
+  const zones = currentRoom === '10E' ? get10EZones() : get10SEZones();
+  html += `<h3 style="margin-top:10px;">Zone Averages</h3>`;
+  html += `<table style="font-size:10px;border-collapse:collapse;width:100%;">`;
+  for (const z of zones) {
+    const avg = zoneAvg(z.points, z.height);
+    const color = avg >= 2 ? '#2e7d32' : avg >= 1 ? '#558b2f' : avg >= 0.5 ? '#9e9d24' : '#999';
+    html += `<tr><td style="padding:2px 0;">${z.name}</td>`;
+    html += `<td style="padding:2px 4px;text-align:right;font-weight:600;color:${color};font-family:monospace;">${avg.toFixed(2)}</td>`;
+    html += `<td style="padding:2px 0;font-size:9px;color:#888;">µW/cm² @${z.height}ft</td></tr>`;
+  }
+  html += `</table>`;
+
+  document.getElementById('stats').innerHTML = html;
+
+  // Update safety note for mode
+  const sn = document.getElementById('safetyNote');
+  if (currentMode === '4hr' && currentRoom === '10SE') {
+    sn.innerHTML = '<span style="color:#e65100;font-weight:600;">Relaxed TLV mode:</span> Standing: 13.5 µW/cm² (3hr) · Seated: 6.8 µW/cm² (6hr).<br>Exact ACGIH 146.1 mJ/cm² dose limit. Glasses recommended for longer sessions facing lamps.';
+  } else {
+    sn.innerHTML = 'IES/ANSI eye TLV: 5.07 µW/cm² (8h continuous).<br>Optimizer targets peak &lt;5.0 µW/cm² with buffer.';
+  }
+}
+
+function render() {
+  const c=document.getElementById('mapCanvas'), ctx2=c.getContext('2d');
+  ctx2.clearRect(0,0,CW,CH);
+  const drawBg = currentRoom==='10E' ? drawFloorPlan10E_Bg : drawFloorPlan10SE_Bg;
+  const drawFg = currentRoom==='10E' ? drawFloorPlan10E_Fg : drawFloorPlan10SE_Fg;
+  if(lamps.length>0){
+    const t0=performance.now();
+    heatmapData=computeHeatmap();
+    drawBg(ctx2);
+    drawHeatmap(ctx2);
+    drawFg(ctx2);
+    drawLamps(ctx2);
+    updateLampTable();
+    updateStats();
+    document.getElementById('perfNote').textContent=`${(performance.now()-t0).toFixed(0)}ms`;
+  } else {
+    drawBg(ctx2);drawFg(ctx2);
+    document.getElementById('stats').innerHTML='<div style="color:#888;">Select a lamp config.</div>';
+  }
+  // Click marker
+  if(clickMarker && document.getElementById('plumeSection').style.display!=='none'){
+    const mx2=ftX(clickMarker.fx), my2=ftY(clickMarker.fy);
+    ctx2.strokeStyle='#1a73e8';ctx2.lineWidth=2;
+    ctx2.beginPath();ctx2.arc(mx2,my2,10,0,Math.PI*2);ctx2.stroke();
+    ctx2.beginPath();ctx2.arc(mx2,my2,4,0,Math.PI*2);ctx2.fillStyle='#1a73e8';ctx2.fill();
+    ctx2.fillStyle='#1a73e8';ctx2.font='bold 9px sans-serif';ctx2.textAlign='left';
+    ctx2.fillText('Midpoint between people',mx2+14,my2+3);
+  }
+  // Update legend barrier visibility
+  document.getElementById('legendBarrier').style.display = ROOMS[currentRoom].barriers.length>0 ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// ROOM/LAMP SWITCHING
+// ═══════════════════════════════════════════════════════
+function populateLampOptions() {
+  const sel = document.getElementById('lampSel');
+  sel.innerHTML = '';
+  const opts = getActiveLampOptions();
+  for (const k of Object.keys(opts).sort((a,b)=>+a - +b)) {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = `${k} lamps (score ${opts[k].score})`;
+    sel.appendChild(o);
+  }
+  const keys = Object.keys(opts).sort((a,b)=>+a - +b);
+  currentLampKey = keys[Math.floor(keys.length/2)];
+  sel.value = currentLampKey;
+  // Show/hide mode selector
+  document.getElementById('modeGroup').style.display = ROOMS[currentRoom].lampOptions_8hr ? '' : 'none';
+}
+
+function loadPreset() {
+  const opts = getActiveLampOptions();
+  lamps = opts[currentLampKey].lamps.map(l=>[...l]);
+  isCustomConfig = false;
+}
+
+function switchRoom(animate) {
+  const c = document.getElementById('mapCanvas');
+
+  if (animate) {
+    recomputeCanvasGeom();
+    c.width = CW;
+    c.height = CH;
+    c.style.width = CW + 'px';
+    c.style.height = CH + 'px';
+    closePlume();
+    populateLampOptions();
+    loadPreset();
+    render();
+  } else {
+    recomputeCanvasGeom();
+    c.width = CW;
+    c.height = CH;
+    c.style.width = CW + 'px';
+    c.style.height = CH + 'px';
+    closePlume();
+    populateLampOptions();
+    loadPreset();
+    render();
+  }
+}
+
+document.getElementById('roomSel').addEventListener('change', e => {
+  currentRoom = e.target.value;
+  currentMode = '8hr';
+  document.getElementById('modeSel').value = '8hr';
+  switchRoom(true);
+});
+
+document.getElementById('modeSel').addEventListener('change', e => {
+  currentMode = e.target.value;
+  populateLampOptions();
+  loadPreset();
+  render();
+});
+
+document.getElementById('lampSel').addEventListener('change', e => {
+  currentLampKey = e.target.value;
+  loadPreset();
+  render();
+});
+
+document.getElementById('heightSlider').addEventListener('input', e => {
+  evalHeight = parseFloat(e.target.value);
+  document.getElementById('heightVal').textContent = evalHeight.toFixed(1) + ' ft';
+  render();
+  if (clickMarker && document.getElementById('plumeSection').style.display !== 'none') {
+    openPlumeAt(clickMarker.fx, clickMarker.fy);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════
+const mapCanvas = document.getElementById('mapCanvas');
+const tooltipEl = document.getElementById('tooltip');
+
+mapCanvas.addEventListener('mousemove', e => {
+  if(lamps.length===0){tooltipEl.style.display='none';return;}
+  const room=ROOMS[currentRoom];
+  const rect=mapCanvas.getBoundingClientRect();
+  const scaleX=CW/rect.width, scaleY=CH/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  const[fx,fy]=pxToFt(mx,my);
+  if(fx<0||fx>room.w||fy<0||fy>room.h){tooltipEl.style.display='none';return;}
+  const per=irrAllLamps(fx,fy,evalHeight);
+  const tot=per.reduce((a,b)=>a+b,0);
+  const ranked=per.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
+  const maxV=ranked[0].v;
+  const totColor=tot>=2?'#2e7d32':tot>=1?'#558b2f':tot>=0.5?'#9e9d24':'#999';
+  let h2=`<div class="header">(${fx.toFixed(1)}', ${fy.toFixed(1)}') at ${evalHeight.toFixed(1)}ft</div>`;
+  h2+=`<div class="total" style="color:${totColor}">Total: ${tot.toFixed(3)} µW/cm²</div>`;
+  h2+=`<div style="font-size:9px;color:#1a73e8;margin-top:3px;">Click midpoint between two people to explore plume transit →</div>`;
+  h2+=`<div style="margin-top:4px;">`;
+  ranked.forEach(({v,i})=>{
+    const isTop=v>0.001&&v>=maxV*0.3, isZero=v<0.001;
+    const wt=isTop?'font-weight:700;':'', col=isZero?'color:#bbb;':(isTop?'color:#2e7d32;':'');
+    const bw=Math.max(0,(maxV>0?v/maxV:0)*60), bc=isTop?'#4caf50':'#ccc';
+    h2+=`<div class="lamp-row" style="${wt}${col}"><span>L${i+1} (${aimStr(lamps[i][2])}, ${lamps[i][3].toFixed(0)}°↓)</span>`;
+    h2+=`<span style="display:flex;align-items:center;gap:4px;">`;
+    if(!isZero)h2+=`<span style="display:inline-block;width:${bw}px;height:6px;background:${bc};border-radius:2px;"></span>`;
+    h2+=`<span class="val">${v.toFixed(4)}</span></span></div>`;
+  });
+  h2+='</div>';
+  tooltipEl.innerHTML=h2;tooltipEl.style.display='block';
+  // Position tooltip in CSS pixels (relative to map-wrap)
+  let tx=(e.clientX-rect.left)+16, ty=(e.clientY-rect.top)-10;
+  if(tx+260>rect.width)tx=(e.clientX-rect.left)-270;
+  if(ty<0)ty=0;
+  tooltipEl.style.left=tx+'px';tooltipEl.style.top=ty+'px';
+});
+mapCanvas.addEventListener('mouseleave',()=>{tooltipEl.style.display='none';});
+
+mapCanvas.addEventListener('click', e => {
+  if(lamps.length===0) return;
+  const room=ROOMS[currentRoom];
+  const rect=mapCanvas.getBoundingClientRect();
+  const scaleX=CW/rect.width, scaleY=CH/rect.height;
+  const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+  const[fx,fy]=pxToFt(mx,my);
+  if(fx<0||fx>room.w||fy<0||fy>room.h) return;
+  clickMarker={fx,fy};
+  openPlumeAt(fx,fy);
+  render();
+});
+
+// ═══════════════════════════════════════════════════════
+// LOAD CUSTOM CONFIG
+// ═══════════════════════════════════════════════════════
+function toggleLoadPanel() {
+  const p=document.getElementById('loadPanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+function parseLampData(text) {
+  const parsed=JSON.parse(text);
+  if(Array.isArray(parsed)&&parsed.length>0&&Array.isArray(parsed[0])) return parsed;
+  if(parsed&&typeof parsed==='object'){
+    const key=Object.keys(parsed).sort((a,b)=>(parsed[b].score||0)-(parsed[a].score||0))[0];
+    if(parsed[key]&&parsed[key].lamps) return parsed[key].lamps;
+  }
+  throw new Error('Unrecognized format');
+}
+function loadFromText() {
+  try {
+    lamps=parseLampData(document.getElementById('lampInput').value.trim());
+    isCustomConfig=true;
+    document.getElementById('status').textContent=`Loaded ${lamps.length} lamps`;
+    render();
+  } catch(e) { document.getElementById('status').textContent='Error: '+e.message; }
+}
+function loadFromFile(event) {
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e2=>{
+    try {
+      lamps=parseLampData(e2.target.result);
+      isCustomConfig=true;
+      document.getElementById('status').textContent=`Loaded ${lamps.length} lamps from ${file.name}`;
+      document.getElementById('lampInput').value=JSON.stringify(lamps);
+      render();
+    } catch(err) { document.getElementById('status').textContent='Error: '+err.message; }
+  };
+  reader.readAsText(file);
+}
+document.getElementById('lampInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();loadFromText();}});
+
+// ═══════════════════════════════════════════════════════
+// PLUME TRANSIT EXPLORER (inline)
+// ═══════════════════════════════════════════════════════
+const PATHOGENS = [
+  {name:"Influenza A",commonName:"Flu",strain:"A/PR/8/34",k1:20.06,k2:2.3,f:0.06,medium:"Aerosol",refShort:"Buonanno 2024"},
+  {name:"Phage Phi6",commonName:"Enveloped virus surrogate",strain:"",k1:20.08,k2:0,f:0,medium:"Aerosol",refShort:"Lu 2024"},
+  {name:"HCoV-OC43",commonName:"Common cold coronavirus",strain:"HCoV-OC43",k1:12.40,k2:1.6,f:0.0031,medium:"Aerosol",refShort:"Welch 2022"},
+  {name:"Pseudomonas alcaligenes",commonName:"Environmental bacterium",strain:"",k1:7.50,k2:0,f:0,medium:"Aerosol",refShort:"Zhang 2022"},
+  {name:"HCoV-OC43",commonName:"Common cold coronavirus",strain:"HCoV-OC43",k1:5.90,k2:0,f:0,medium:"Aerosol",refShort:"Buonanno 2020"},
+  {name:"HCoV-229E",commonName:"Common cold coronavirus",strain:"HCoV-229E",k1:4.11,k2:0,f:0,medium:"Aerosol",refShort:"Buonanno 2020"},
+  {name:"Staphylococcus epidermidis",commonName:"Skin bacterium",strain:"ATCC 12228",k1:3.05,k2:0,f:0,medium:"Aerosol",refShort:"Lu 2024"},
+  {name:"SARS-CoV-2",commonName:"COVID-19 virus",strain:"hCoV-19/46059T/2020",k1:2.62,k2:0,f:0,medium:"Aerosol",refShort:"Kitagawa 2022"},
+  {name:"Murine norovirus",commonName:"Stomach flu surrogate",strain:"CW1",k1:2.36,k2:0.35,f:0.085,medium:"Aerosol",refShort:"Buonanno 2024"},
+  {name:"Influenza A",commonName:"Flu",strain:"H1N1",k1:1.80,k2:0,f:0,medium:"Aerosol",refShort:"Welch 2018"},
+  {name:"Mycobacterium tuberculosis",commonName:"TB",strain:"",k1:0.6,k2:0,f:0,medium:"Estimate",refShort:"Est."},
+  {name:"Adenovirus",commonName:"Common cold / pink eye virus",strain:"ATCC VR-846",k1:0.33,k2:0,f:0,medium:"Liquid",refShort:"Oh 2020"},
+];
+
+const D0 = 0.02;
+let plumeState = { plumeType:'talk', v0:1.5, distFt:6, irrad:2.5 };
+let plumeParticles = [];
+let plumeAnimTimer = null;
+
+function getTransitTime(distFt,v0,plumeType) {
+  const d=distFt*FT2M;
+  if(plumeType==='cough'||plumeType==='sneeze'){
+    return Math.max((d*d-D0*D0)/(2*v0*D0), d/v0);
+  }
+  return d/v0;
+}
+function survivalFraction(dose_mJ,k1,k2,f){return(1-f)*Math.exp(-k1*dose_mJ)+f*Math.exp(-k2*dose_mJ);}
+
+function openPlumeAt(fx,fy) {
+  const tot=irrAllLamps(fx,fy,evalHeight).reduce((a,b)=>a+b,0);
+  plumeState.irrad=tot;
+  document.getElementById('irradSlider').value=Math.min(25,tot);
+  document.getElementById('plumeSection').style.display='block';
+  document.getElementById('plumePosLabel').innerHTML=`Plume Transit Explorer — <span style="color:#333">(${fx.toFixed(1)}', ${fy.toFixed(1)}') at ${evalHeight.toFixed(1)}ft · ${tot.toFixed(3)} µW/cm²</span>`;
+  updatePlume();
+  document.getElementById('plumeSection').scrollIntoView({behavior:'smooth'});
+}
+
+function closePlume() {
+  document.getElementById('plumeSection').style.display='none';
+  clickMarker=null;
+  if(plumeAnimTimer){cancelAnimationFrame(plumeAnimTimer);plumeAnimTimer=null;}
+  render();
+}
+
+function initPlumeParticles() {
+  plumeParticles=[];
+  for(let i=0;i<80;i++){
+    plumeParticles.push({progress:0,angle:(Math.random()-0.5)*0.5,speed:0.7+Math.random()*0.6,size:1.5+Math.random()*2,delay:Math.random()*0.3,alive:true});
+  }
+}
+
+function updatePlume() {
+  const{distFt,v0,plumeType,irrad}=plumeState;
+  const transitS=getTransitTime(distFt,v0,plumeType);
+  const avgV=distFt*FT2M/transitS;
+  const dose_uJ=irrad*transitS;
+  const dose_mJ=dose_uJ/1000;
+
+  document.getElementById('distVal').textContent=`${distFt} ft (${(distFt*FT2M).toFixed(2)} m)`;
+  document.getElementById('irradVal').innerHTML=`${irrad.toFixed(2)} µW/cm²`;
+  document.getElementById('transitTime').textContent=transitS<10?transitS.toFixed(2):transitS.toFixed(1);
+  document.getElementById('transitSub').textContent=`avg velocity: ${avgV.toFixed(2)} m/s · initial: ${v0} m/s`;
+
+  if(dose_uJ>=1000){
+    document.getElementById('uvDose').textContent=dose_mJ.toFixed(3);
+    document.getElementById('uvDose').nextElementSibling.innerHTML='mJ/cm²';
+  } else {
+    document.getElementById('uvDose').textContent=dose_uJ<0.01?dose_uJ.toExponential(2):dose_uJ.toFixed(3);
+    document.getElementById('uvDose').nextElementSibling.innerHTML='µJ/cm²';
+  }
+  document.getElementById('doseSub').textContent=`${irrad.toFixed(2)} µW/cm² × ${transitS.toFixed(2)}s`;
+
+  // Pathogen table
+  const tbody=document.querySelector('#pathTable tbody');tbody.innerHTML='';
+  for(const p of PATHOGENS){
+    const S=survivalFraction(dose_mJ,p.k1,p.k2||0,p.f||0);
+    const pctKilled=(1-S)*100, pctSurv=S*100;
+    let barColor;
+    if(pctKilled>90)barColor='#1a73e8';
+    else if(pctKilled>50)barColor='#5c9ce6';
+    else if(pctKilled>10)barColor='#90b8e8';
+    else barColor='#b8ccdf';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="pathogen-name">${p.name}</span><span class="strain">${p.commonName}${p.strain?' · '+p.strain:''}</span></td>
+      <td class="k-val">${p.k1}${p.k2?' / '+p.k2:''}</td>
+      <td class="k-val">${p.f>0?`f=${(p.f*100).toFixed(1)}%`:'—'}</td>
+      <td><span class="medium-tag">${p.medium}</span></td>
+      <td><div class="survival-bar-wrap"><div class="survival-bar-bg"><div class="survival-bar" style="width:${Math.max(pctKilled,0.3)}%;background:${barColor};"></div></div><span class="survival-pct">${pctKilled<0.01?pctKilled.toExponential(1):pctKilled<1?pctKilled.toFixed(2):pctKilled.toFixed(1)}%</span></div></td>
+      <td class="killed-pct">${pctSurv>99.9?pctSurv.toFixed(2):pctSurv>9.9?pctSurv.toFixed(1):pctSurv.toFixed(2)}%</td>
+      <td class="ref">${p.refShort}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  updateInterpretPanel(dose_mJ);
+  drawPlumeScene();
+  drawDoseChart(transitS);
+
+  // Start animation if not running
+  if(!plumeAnimTimer){initPlumeParticles();animatePlumeParticles();}
+}
+
+function updateInterpretPanel(dose_mJ) {
+  const flu=PATHOGENS[0],covid=PATHOGENS[7],cold=PATHOGENS[5];
+  const fluKill=(1-survivalFraction(dose_mJ,flu.k1,flu.k2,flu.f))*100;
+  const covidKill=(1-survivalFraction(dose_mJ,covid.k1,covid.k2,covid.f))*100;
+  const fluPerCough=7e4,fluSurviving=Math.round(fluPerCough*(1-fluKill/100));
+  const covidPerCough=1e4,covidSurviving=Math.round(covidPerCough*(1-covidKill/100));
+  let html='';
+  if(dose_mJ<0.0001){
+    html='<p style="color:#888;">Adjust the irradiance and plume type above to see what near-field UV inactivation means for infection risk.</p>';
+  } else {
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
+    html+=`<div style="padding:10px;background:#f0f4ff;border-radius:6px;border:1px solid #c4d7f5;">
+      <div style="font-weight:700;margin-bottom:4px;">Influenza A (flu)</div>
+      <div>A cough carries ~70,000 viral copies. At ${fluKill.toFixed(1)}% inactivation:</div>
+      <div style="font-size:16px;font-weight:700;margin:4px 0;font-family:monospace;">${fluSurviving.toLocaleString()} viable virions remain</div>
+      <div style="color:#666;">ID50 is extremely low (~1-3 TCID50), so ${fluSurviving>100?'remaining dose is still far above infectious threshold':'approaching meaningful dose reduction'}.</div>
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid #c4d7f5;color:#1a73e8;">
+      <strong>Severity:</strong> Human challenge studies (Memoli 2015, 2019) show lower initial dose → fewer symptoms, shorter illness. ${fluKill>5?`A ${fluKill.toFixed(0)}% reduction is expected to produce measurably milder illness.`:`A ${fluKill.toFixed(1)}% reduction is modest but contributes to dose reduction.`}</div></div>`;
+    html+=`<div style="padding:10px;background:#fff8f0;border-radius:6px;border:1px solid #f5d7b7;">
+      <div style="font-weight:700;margin-bottom:4px;">SARS-CoV-2 (COVID-19)</div>
+      <div>A cough carries ~10,000 viral copies. At ${covidKill.toFixed(1)}% inactivation:</div>
+      <div style="font-size:16px;font-weight:700;margin:4px 0;font-family:monospace;">${covidSurviving.toLocaleString()} viable virions remain</div>
+      <div style="color:#666;">ID50 estimates: ~100-1,000 copies (higher than flu), so partial inactivation has more impact on infection probability.</div>
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid #f5d7b7;color:#e65100;">
+      <strong>Severity:</strong> Animal models show dose-dependent disease severity. Human evidence is mixed — PPE studies suggest lower dose → milder illness.</div></div>`;
+    html+=`</div>`;
+    html+=`<div style="margin-top:8px;padding:8px;background:#fafafa;border-radius:4px;font-size:10px;color:#888;border:1px solid #eee;">
+      <strong>Key insight:</strong> For pathogens with very low infectious doses (flu, TB), even significant UV inactivation during a brief plume transit may not prevent infection — but evidence shows it can reduce disease severity and duration. Near-field UV complements, but does not replace, distance and ventilation.
+      <br><em>Sources: Memoli et al. 2015 (H1N1), 2019 (H3N2), Paulo et al. 2010, Prentiss et al. 2020.</em></div>`;
+  }
+  document.getElementById('interpretPanel').innerHTML=html;
+}
+
+// Plume scene
+const sceneCanvas=document.getElementById('scene');
+const sctx=sceneCanvas.getContext('2d');
+
+function drawPlumeScene() {
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const{distFt,irrad,v0,plumeType}=plumeState;
+  sctx.clearRect(0,0,W,H);
+  sctx.fillStyle='#0a0a1a';sctx.fillRect(0,0,W,H);
+  const floorY=H-30,ceilY=20,roomLeft=80,roomRight=W-80;
+  if(irrad>0){
+    const grad=sctx.createLinearGradient(0,ceilY,0,floorY);
+    const alpha=Math.min(0.25,irrad/25*0.25);
+    grad.addColorStop(0,`rgba(147,100,255,${alpha*1.5})`);
+    grad.addColorStop(0.4,`rgba(147,100,255,${alpha})`);
+    grad.addColorStop(1,`rgba(147,100,255,${alpha*0.3})`);
+    sctx.fillStyle=grad;sctx.fillRect(roomLeft,ceilY,roomRight-roomLeft,floorY-ceilY);
+    sctx.fillStyle=`rgba(180,150,255,${Math.min(0.7,alpha*4)})`;
+    sctx.font='9px sans-serif';sctx.textAlign='right';
+    sctx.fillText(`${irrad.toFixed(2)} µW/cm² at breathing height`,roomRight-5,ceilY+18);
+  }
+  sctx.fillStyle='#333';sctx.fillRect(roomLeft,ceilY-3,roomRight-roomLeft,6);
+  const nLamps=3;
+  for(let i=0;i<nLamps;i++){
+    const lx=roomLeft+(roomRight-roomLeft)*(i+0.5)/nLamps;
+    sctx.fillStyle='#555';sctx.fillRect(lx-12,ceilY+3,24,6);
+    if(irrad>0){
+      sctx.fillStyle=`rgba(180,130,255,${Math.min(0.9,irrad/10)})`;
+      sctx.fillRect(lx-8,ceilY+3,16,4);
+      const glowGrad=sctx.createRadialGradient(lx,ceilY+6,0,lx,ceilY+6,40);
+      glowGrad.addColorStop(0,`rgba(180,130,255,${Math.min(0.3,irrad/15)})`);
+      glowGrad.addColorStop(1,'rgba(180,130,255,0)');
+      sctx.fillStyle=glowGrad;sctx.beginPath();sctx.arc(lx,ceilY+6,40,0,Math.PI*2);sctx.fill();
+    }
+  }
+  sctx.fillStyle='#1a1a2e';sctx.fillRect(roomLeft,floorY,roomRight-roomLeft,H-floorY);
+  sctx.strokeStyle='#333';sctx.beginPath();sctx.moveTo(roomLeft,floorY);sctx.lineTo(roomRight,floorY);sctx.stroke();
+  const personHeight=90,headR=10,mouthY=floorY-personHeight+headR+8;
+  const maxDistPx=roomRight-roomLeft-120;
+  const scaledDist=Math.min(maxDistPx,(distFt/20)*maxDistPx);
+  const p1x=roomLeft+50,p2x=p1x+scaledDist;
+  drawPerson(sctx,p1x,floorY,personHeight,headR,'#4fc3f7');
+  drawPerson(sctx,p2x,floorY,personHeight,headR,'#81c784');
+  sctx.fillStyle='#aaa';sctx.font='11px sans-serif';sctx.textAlign='center';
+  sctx.fillText(`${distFt} ft`,(p1x+p2x)/2,floorY+16);
+  sctx.strokeStyle='#666';sctx.beginPath();sctx.moveTo(p1x,floorY+8);sctx.lineTo(p2x,floorY+8);sctx.stroke();
+  sctx.beginPath();sctx.moveTo(p1x+5,floorY+5);sctx.lineTo(p1x,floorY+8);sctx.lineTo(p1x+5,floorY+11);sctx.stroke();
+  sctx.beginPath();sctx.moveTo(p2x-5,floorY+5);sctx.lineTo(p2x,floorY+8);sctx.lineTo(p2x-5,floorY+11);sctx.stroke();
+  const transitS=getTransitTime(distFt,v0,plumeType);
+  const dose_mJ2=irrad*transitS/1000;
+  for(const p of plumeParticles){
+    if(!p.alive)continue;
+    const prog=Math.max(0,p.progress-p.delay)/(1-p.delay);
+    if(prog<=0||prog>1)continue;
+    const px=p1x+15+prog*(p2x-p1x-30);
+    const spreadY=p.angle*prog*60;
+    const py=mouthY+spreadY;
+    const partialDose=dose_mJ2*prog;
+    const partialSurvival=Math.exp(-4.11*partialDose);
+    const r=Math.round(100+155*(1-partialSurvival));
+    const g=Math.round(200*partialSurvival+80*(1-partialSurvival));
+    const b=Math.round(50*partialSurvival+80*(1-partialSurvival));
+    sctx.fillStyle=`rgba(${r},${g},${b},${0.4+0.5*(1-prog*0.5)})`;
+    sctx.beginPath();sctx.arc(px,py,p.size*(1-prog*0.3),0,Math.PI*2);sctx.fill();
+  }
+  sctx.fillStyle='#666';sctx.font='9px sans-serif';sctx.textAlign='left';
+  sctx.fillText('Source',p1x-12,floorY-personHeight-8);
+  sctx.textAlign='center';sctx.fillText('Receiver',p2x,floorY-personHeight-8);
+}
+
+function drawPerson(ctx2,x,floorY,h,headR,color){
+  const bodyTop=floorY-h+headR*2;
+  ctx2.fillStyle=color;ctx2.beginPath();ctx2.arc(x,floorY-h+headR,headR,0,Math.PI*2);ctx2.fill();
+  ctx2.strokeStyle=color;ctx2.lineWidth=3;
+  ctx2.beginPath();ctx2.moveTo(x,bodyTop);ctx2.lineTo(x,floorY-25);ctx2.stroke();
+  ctx2.beginPath();ctx2.moveTo(x,floorY-25);ctx2.lineTo(x-10,floorY);ctx2.moveTo(x,floorY-25);ctx2.lineTo(x+10,floorY);ctx2.stroke();
+  ctx2.beginPath();ctx2.moveTo(x,bodyTop+10);ctx2.lineTo(x-12,bodyTop+30);ctx2.moveTo(x,bodyTop+10);ctx2.lineTo(x+12,bodyTop+30);ctx2.stroke();
+  ctx2.lineWidth=1;
+}
+
+function animatePlumeParticles(){
+  if(document.getElementById('plumeSection').style.display==='none'){plumeAnimTimer=null;return;}
+  const speed=(plumeState.plumeType==='sneeze'||plumeState.plumeType==='cough')?0.018:0.008;
+  for(const p of plumeParticles){
+    if(!p.alive)continue;
+    p.progress+=speed*p.speed;
+    if(p.progress>1.3)p.progress=-Math.random()*0.5;
+  }
+  drawPlumeScene();
+  plumeAnimTimer=requestAnimationFrame(animatePlumeParticles);
+}
+
+function drawDoseChart(transitS) {
+  const canvas2=document.getElementById('doseChart');
+  const cx=canvas2.getContext('2d');
+  const W=canvas2.width,H=canvas2.height;
+  const pad={top:30,right:30,bottom:45,left:65};
+  const plotW2=W-pad.left-pad.right,plotH2=H-pad.top-pad.bottom;
+  cx.clearRect(0,0,W,H);cx.fillStyle='#fff';cx.fillRect(0,0,W,H);
+  const maxDose_uJ=1000;
+  cx.strokeStyle='#eee';cx.lineWidth=1;
+  for(let i=0;i<=5;i++){const y=pad.top+plotH2*(1-i/5);cx.beginPath();cx.moveTo(pad.left,y);cx.lineTo(pad.left+plotW2,y);cx.stroke();}
+  for(let i=0;i<=5;i++){const x=pad.left+plotW2*i/5;cx.beginPath();cx.moveTo(x,pad.top);cx.lineTo(x,pad.top+plotH2);cx.stroke();}
+  const curvePaths=[
+    {idx:0,color:'#1565c0',label:'Flu (Buonanno 2024)'},
+    {idx:1,color:'#6a1b9a',label:'Phi6 (Lu 2024)'},
+    {idx:2,color:'#00838f',label:'Cold OC43 (Welch 2022)'},
+    {idx:5,color:'#2e7d32',label:'Cold 229E (Buonanno 2020)'},
+    {idx:7,color:'#e65100',label:'COVID-19 (Kitagawa 2022)'},
+    {idx:9,color:'#4527a0',label:'Flu (Welch 2018)'},
+    {idx:10,color:'#795548',label:'TB (estimate)'},
+    {idx:11,color:'#c62828',label:'Adenovirus (Oh 2020)'},
+  ];
+  for(const cp of curvePaths){
+    const p=PATHOGENS[cp.idx];
+    cx.strokeStyle=cp.color;cx.lineWidth=2;cx.beginPath();
+    for(let px=0;px<=plotW2;px++){
+      const dose_uJ2=(px/plotW2)*maxDose_uJ,dose_mJ2=dose_uJ2/1000;
+      const S=survivalFraction(dose_mJ2,p.k1,p.k2||0,p.f||0);
+      const y=pad.top+plotH2*(1-(1-S));
+      if(px===0)cx.moveTo(pad.left+px,y);else cx.lineTo(pad.left+px,y);
+    }cx.stroke();
+  }
+  const currentDose_uJ=plumeState.irrad*transitS;
+  const markerX=pad.left+Math.min(1,currentDose_uJ/maxDose_uJ)*plotW2;
+  cx.strokeStyle='rgba(100,100,255,0.6)';cx.lineWidth=1.5;cx.setLineDash([4,3]);
+  cx.beginPath();cx.moveTo(markerX,pad.top);cx.lineTo(markerX,pad.top+plotH2);cx.stroke();cx.setLineDash([]);
+  cx.fillStyle='#1a73e8';cx.font='9px sans-serif';cx.textAlign='center';
+  cx.fillText(`current: ${currentDose_uJ<1?currentDose_uJ.toFixed(2):currentDose_uJ.toFixed(1)} µJ/cm²`,markerX,pad.top-5);
+  cx.font='9px sans-serif';cx.textAlign='left';
+  let ly=pad.top+8;
+  for(const cp of curvePaths){cx.fillStyle=cp.color;cx.fillRect(pad.left+plotW2-200,ly-6,10,3);cx.fillStyle='#444';cx.fillText(cp.label,pad.left+plotW2-186,ly-2);ly+=12;}
+  cx.strokeStyle='#999';cx.lineWidth=1;cx.beginPath();cx.moveTo(pad.left,pad.top);cx.lineTo(pad.left,pad.top+plotH2);cx.lineTo(pad.left+plotW2,pad.top+plotH2);cx.stroke();
+  cx.fillStyle='#666';cx.font='10px sans-serif';cx.textAlign='center';
+  for(let i=0;i<=5;i++)cx.fillText((maxDose_uJ*i/5).toString(),pad.left+plotW2*i/5,pad.top+plotH2+16);
+  cx.fillText('UV dose (µJ/cm²)',pad.left+plotW2/2,pad.top+plotH2+36);
+  cx.textAlign='right';
+  for(let i=0;i<=5;i++)cx.fillText((20*i)+'%',pad.left-6,pad.top+plotH2*(1-i/5)+3);
+  cx.save();cx.translate(14,pad.top+plotH2/2);cx.rotate(-Math.PI/2);cx.textAlign='center';cx.fillText('% Inactivated',0,0);cx.restore();
+}
+
+// Plume controls
+document.getElementById('distSlider').addEventListener('input',e=>{plumeState.distFt=parseFloat(e.target.value);updatePlume();});
+document.getElementById('irradSlider').addEventListener('input',e=>{plumeState.irrad=parseFloat(e.target.value);updatePlume();});
+document.querySelectorAll('.plume-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.plume-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    plumeState.plumeType=btn.dataset.type;
+    plumeState.v0=parseFloat(btn.dataset.v);
+    document.getElementById('plumeInfo').textContent=btn.dataset.desc;
+    initPlumeParticles();updatePlume();
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+switchRoom(false);
+</script>
+</body>
+</html>
