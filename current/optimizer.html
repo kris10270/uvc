@@ -2324,6 +2324,59 @@ function drawScoreChart() {
   ctx.fillText('BEST SCORE' + countLabel, pad.left, 4);
 }
 
+function drawChainChart(wIdx, lampCount, chainIdx) {
+  const canvas = document.getElementById('chainCanvas' + wIdx);
+  if (!canvas) return;
+  const history = (chainScoreHistories[lampCount] || {})[chainIdx] || [];
+  if (history.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = canvas.width / dpr, H = canvas.height / dpr;
+  const pad = { top: 6, right: 40, bottom: 12, left: 6 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const totalIter = lastIterations || 500000;
+  const scores = history.map(h => h.score);
+  const minS = Math.min(...scores), maxS = Math.max(...scores);
+  const range = maxS - minS || 1;
+  const yMin = minS - range * 0.1, yMax = maxS + range * 0.1;
+  const yRange = yMax - yMin;
+
+  // Line
+  ctx.strokeStyle = '#7a6a5a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < history.length; i++) {
+    const x = pad.left + (history[i].step / totalIter) * plotW;
+    const y = pad.top + plotH * (1 - (history[i].score - yMin) / yRange);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // End score label
+  const last = history[history.length - 1];
+  const lastX = pad.left + (last.step / totalIter) * plotW;
+  const lastY = pad.top + plotH * (1 - (last.score - yMin) / yRange);
+  ctx.fillStyle = '#5a4a3a';
+  ctx.font = '600 9px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(last.score.toFixed(0), lastX + 4, Math.min(Math.max(lastY, pad.top + 6), pad.top + plotH - 6));
+
+  // Min/max labels
+  ctx.fillStyle = '#b0a898';
+  ctx.font = '8px JetBrains Mono, monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText(maxS.toFixed(0), W - 2, pad.top);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(minS.toFixed(0), W - 2, pad.top + plotH);
+}
+
 function drawHeatmap() {
   const canvas = document.getElementById('heatmapCanvas');
   const ctx = canvas.getContext('2d');
@@ -3294,7 +3347,27 @@ startBtn.addEventListener('click', () => {
         <span class="progress-pct" id="ppct${wIdx}">0%</span>
         <span class="progress-score" id="pscore${wIdx}">&mdash;</span>
       `;
+      wrap.style.cursor = 'pointer';
+      const chartContainer = document.createElement('div');
+      chartContainer.id = `chainChart${wIdx}`;
+      chartContainer.style.cssText = 'display:none;margin:2px 0 6px 68px;';
+      chartContainer.innerHTML = `<canvas id="chainCanvas${wIdx}" height="60" style="width:100%;background:#faf8f4;border-radius:3px;border:1px solid var(--rule-light);"></canvas>`;
+      wrap.addEventListener('click', () => {
+        const visible = chartContainer.style.display !== 'none';
+        chartContainer.style.display = visible ? 'none' : 'block';
+        if (!visible) {
+          const canvas = document.getElementById('chainCanvas' + wIdx);
+          const cw = canvas.parentElement.clientWidth || 400;
+          const dpr = window.devicePixelRatio || 1;
+          canvas.width = cw * dpr;
+          canvas.height = 60 * dpr;
+          canvas.style.width = cw + 'px';
+          canvas.style.height = '60px';
+          drawChainChart(wIdx, count, c);
+        }
+      });
       barsEl.appendChild(wrap);
+      barsEl.appendChild(chartContainer);
     }
   }
 
@@ -3416,6 +3489,11 @@ startBtn.addEventListener('click', () => {
             chainScoreHistories[lampCount][chainIdx].push({ step: msg.step, score: msg.currentScore != null ? msg.currentScore : msg.bestScore });
           }
           if (lampCount === viewingCount) drawScoreChart();
+          // Update per-chain chart if visible
+          const chainChartEl = document.getElementById('chainChart' + wIdx);
+          if (chainChartEl && chainChartEl.style.display !== 'none') {
+            drawChainChart(wIdx, lampCount, chainIdx);
+          }
         }
 
         // Update per-count score display
