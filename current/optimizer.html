@@ -1023,11 +1023,20 @@ label[data-tip]:hover::after {
 <div id="gpuBanner" style="display:none;"></div>
 
 <div class="footer">
-  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing &middot; Built by Claude Opus 4.6 &middot; <span id="footerVersion">v1.0</span> &middot; <a href="https://github.com/kris10270/uvc" style="color: var(--ink-light);">GitHub</a>
+  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing &middot; Built by Claude Opus 4.6 &middot; <span id="footerVersion"></span> &middot; <a href="https://github.com/kris10270/uvc" style="color: var(--ink-light);">GitHub</a>
 </div>
 
 <script>
 const UVC_VERSION = 'v1.0';
+// Content hash for reproducibility — computed from the page source at load time
+const UVC_HASH = (function() {
+  const src = document.documentElement.outerHTML;
+  let h = 0;
+  for (let i = 0; i < src.length; i++) {
+    h = ((h << 5) - h + src.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+})();
 // ════════════════════════════════════════════════════════════════════
 // State
 // ════════════════════════════════════════════════════════════════════
@@ -2256,10 +2265,12 @@ function drawScoreChart() {
   ctx.stroke();
 
   // Fill under primary curve
+  const firstPt = scoreHistory[0];
+  const firstX = pad.left + (firstPt.step / totalIter) * plotW;
   const lastPt = scoreHistory[scoreHistory.length - 1];
   const lastX = pad.left + (lastPt.step / totalIter) * plotW;
   ctx.lineTo(lastX, pad.top + plotH);
-  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.lineTo(firstX, pad.top + plotH);
   ctx.closePath();
   ctx.fillStyle = 'rgba(90,74,58,0.06)';
   ctx.fill();
@@ -4119,7 +4130,7 @@ function generateGuvFile(lamps) {
 
   return {
     "guv-calcs_version": "0.6.5",
-    timestamp: new Date().toISOString().split('T')[0] + ` (optimizer ${lamps.length}-lamp) (${UVC_VERSION})`,
+    timestamp: new Date().toISOString().split('T')[0] + ` (optimizer ${lamps.length}-lamp) (${UVC_VERSION}+${UVC_HASH})`,
     format: "project",
     data: {
       standard: "ANSI IES RP 27.1-22 (ACGIH Limits)",
@@ -4349,7 +4360,7 @@ function toGeoJSON() {
     type: 'FeatureCollection',
     properties: {
       name: 'UVC Room Configuration',
-      version: UVC_VERSION,
+      version: UVC_VERSION + '+' + UVC_HASH,
       units: 'feet',
       ceilingHeight: getCeilH(),
       mountHeight: getMountH()
@@ -4458,6 +4469,7 @@ document.getElementById('importGeoJSON').addEventListener('change', (e) => {
 // ════════════════════════════════════════════════════════════════════
 
 refresh();
+document.getElementById('footerVersion').textContent = UVC_VERSION + '+' + UVC_HASH;
 
 // WebGPU detection — show banner if unavailable
 (async function() {
