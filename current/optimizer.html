@@ -3612,25 +3612,50 @@ document.getElementById('stopBtn').addEventListener('click', () => {
 // ════════════════════════════════════════════════════════════════════
 
 function convergenceHtml(history, totalIter) {
-  if (history.length < 4) return '';
+  if (history.length < 6) return '';
+
+  // Compare the rate of improvement (score gain per step) in the last 25%
+  // vs the first 25%. If the rate has dropped to near zero, we're converged.
+  // If it's still high, more iterations would help.
   const q1End = Math.floor(history.length * 0.25);
   const q3Start = Math.floor(history.length * 0.75);
-  const firstScore = history[0].score;
-  const q3Score = history[q3Start].score;
-  const finalScore = history[history.length - 1].score;
-  const lastQuarterGain = finalScore - q3Score;
-  const totalGain = finalScore - firstScore;
+
+  // Rate = score gain / steps in that quarter
+  const firstQGain = history[q1End].score - history[0].score;
+  const firstQSteps = history[q1End].step - history[0].step || 1;
+  const firstQRate = firstQGain / firstQSteps;
+
+  const lastQGain = history[history.length - 1].score - history[q3Start].score;
+  const lastQSteps = history[history.length - 1].step - history[q3Start].step || 1;
+  const lastQRate = lastQGain / lastQSteps;
+
+  const totalGain = history[history.length - 1].score - history[0].score;
   if (totalGain <= 0) return '<div class="derived-row" style="color:var(--ink-light);">No score improvement during run.</div>';
-  const lastQPct = (lastQuarterGain / totalGain * 100);
+
+  // How much has the improvement rate decayed?
+  // rateRatio near 0 = fully converged, near 1 = still improving at same pace
+  const rateRatio = firstQRate > 0 ? lastQRate / firstQRate : 0;
+
   let verdict, color;
-  if (lastQuarterGain < 0.5) { verdict = 'Fully converged — more iterations unlikely to help.'; color = 'var(--accent)'; }
-  else if (lastQPct < 5) { verdict = 'Well converged — diminishing returns from more iterations.'; color = 'var(--accent)'; }
-  else if (lastQPct < 15) { verdict = 'Mostly converged — slightly more iterations might help.'; color = 'var(--ink-muted)'; }
-  else { verdict = 'Still improving — consider running with more iterations.'; color = '#b06030'; }
+  if (rateRatio < 0.02) {
+    verdict = 'Fully converged — more iterations unlikely to help.';
+    color = 'var(--accent)';
+  } else if (rateRatio < 0.1) {
+    verdict = 'Well converged — diminishing returns from more iterations.';
+    color = 'var(--accent)';
+  } else if (rateRatio < 0.3) {
+    verdict = 'Slowing down — more iterations would help somewhat.';
+    color = 'var(--ink-muted)';
+  } else {
+    verdict = 'Still improving rapidly — more iterations recommended.';
+    color = '#b06030';
+  }
+
+  const rateDecay = ((1 - rateRatio) * 100).toFixed(0);
   return `<div class="derived-row" style="margin-top:4px;">
-    <label data-tip="Shows how much score improvement happened in the last 25% of iterations vs the total. If most improvement happened early, the optimizer has converged and more iterations won't help much.">Convergence</label>:
+    <label data-tip="Compares the rate of score improvement (gain per step) in the last 25% of iterations to the first 25%. A high decay means the optimizer has found most of what it can; a low decay means it's still actively improving.">Convergence</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(last 25%: +${lastQuarterGain.toFixed(1)} of ${totalGain.toFixed(1)} total gain, ${lastQPct.toFixed(0)}%)</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(improvement rate decayed ${rateDecay}% from start to end)</span>
   </div>`;
 }
 
