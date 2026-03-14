@@ -3655,8 +3655,7 @@ function switchToCount(count) {
   if (resultsArea.style.display !== 'none') {
     updateResultsDisplay(result, count);
     const breakdownEl = document.getElementById('scoreBreakdown');
-    breakdownEl.innerHTML += convergenceHtml(scoreHistories[count] || [], lastIterations, count);
-    breakdownEl.innerHTML += chainAnalysisHtml(count);
+    breakdownEl.innerHTML += searchQualityHtml(scoreHistories[count] || [], lastIterations, count);
   }
 }
 
@@ -3707,117 +3706,71 @@ document.getElementById('stopBtn').addEventListener('click', () => {
 // Finish optimization
 // ════════════════════════════════════════════════════════════════════
 
-function convergenceHtml(history, totalIter, lampCount) {
-  // Combine two independent signals:
-  // 1. Score curve shape: is the best-so-far still improving?
-  // 2. Chain agreement: did chains converge to similar scores?
-  //
-  // Both must agree for "converged." If the curve is flat but chains are
-  // scattered, the cooling schedule froze the search prematurely — more
-  // iterations (or chains) needed. We can't reliably distinguish which
-  // at low iteration counts, so we recommend both.
+function searchQualityHtml(history, totalIter, lampCount) {
+  // Single assessment combining curve shape + chain agreement.
+  // Two signals:
+  //   1. Score curve: is best-so-far still improving in last 25%?
+  //   2. Chains: how many found scores within 2% of the best?
+  // Both must agree for "converged."
 
-  if (history.length < 6) return '';
-  const q3 = Math.floor(history.length * 0.75);
-  const totalGain = history[history.length - 1].score - history[0].score;
-  const finalScore = history[history.length - 1].score;
-  if (totalGain <= 0) return '<div class="derived-row" style="color:var(--ink-light);">No score improvement during run.</div>';
-
-  const lastQGain = history[history.length - 1].score - history[q3].score;
-  const lastQFrac = lastQGain / totalGain;
-  const curveFlat = lastQFrac < 0.05;
-
-  // Chain agreement
   const chainScores = [];
   for (const wm of workerMap) {
     if (wm.lampCount === lampCount && chainResults[wm.workerIdx]) {
       chainScores.push(chainResults[wm.workerIdx].bestScore);
     }
   }
-  let chainsAgree = true;
+
+  // Curve analysis
+  let curveFlat = true;
+  let lastQPct = 0;
+  if (history.length >= 6) {
+    const q3 = Math.floor(history.length * 0.75);
+    const totalGain = history[history.length - 1].score - history[0].score;
+    if (totalGain > 0) {
+      const lastQGain = history[history.length - 1].score - history[q3].score;
+      lastQPct = lastQGain / totalGain * 100;
+      curveFlat = lastQPct < 5;
+    }
+  }
+
+  // Chain agreement
   let nearBest = chainScores.length;
-  if (chainScores.length >= 2) {
+  let chainsAgree = true;
+  const n = chainScores.length;
+  if (n >= 2) {
     chainScores.sort((a, b) => b - a);
     const best = chainScores[0];
     const threshold = Math.abs(best) * 0.02;
     nearBest = chainScores.filter(s => best - s <= threshold).length;
-    chainsAgree = nearBest >= 3 || (nearBest >= 2 && chainScores.length <= 4);
+    chainsAgree = nearBest >= 3 || (nearBest >= 2 && n <= 4);
   }
 
-  // Coefficient of variation of top half of chains (how tight are the good chains?)
-  const topHalf = chainScores.slice(0, Math.max(2, Math.ceil(chainScores.length / 2)));
-  const topMean = topHalf.reduce((a, b) => a + b, 0) / topHalf.length;
-  const topStd = Math.sqrt(topHalf.reduce((a, s) => a + (s - topMean) ** 2, 0) / topHalf.length);
-  const topCV = topMean > 0 ? topStd / topMean : 0;
+  const topScores = chainScores.slice(0, Math.min(5, n)).map(s => s.toFixed(1)).join(', ');
+  const suffix = n > 5 ? ` ... (${n} total)` : '';
 
   let verdict, color, detail;
   if (curveFlat && chainsAgree) {
     verdict = 'Converged — more iterations or chains unlikely to help.';
     color = 'var(--accent)';
-    detail = `score curve flat, ${nearBest}/${chainScores.length} chains agree`;
+    detail = `${nearBest}/${n} chains within 2% · score curve flat`;
   } else if (curveFlat && !chainsAgree) {
-    verdict = 'Chains are scattered — try more iterations, more chains, or both.';
+    verdict = 'Chains scattered — try more iterations, more chains, or both.';
     color = '#b06030';
-    detail = `score curve flat but only ${nearBest}/${chainScores.length} chains within 2% — cooling may have frozen search early`;
+    detail = `only ${nearBest}/${n} chains within 2% · curve flat (cooling may have frozen search early)`;
   } else if (!curveFlat && chainsAgree) {
-    verdict = 'Still improving but chains agree — more iterations recommended.';
+    verdict = 'Still improving — more iterations recommended.';
     color = 'var(--ink-muted)';
-    detail = `last 25% contributed ${(lastQFrac*100).toFixed(0)}% of gain, ${nearBest}/${chainScores.length} chains agree`;
+    detail = `${nearBest}/${n} chains within 2% · last 25% contributed ${lastQPct.toFixed(0)}% of gain`;
   } else {
-    verdict = 'Still improving and chains scattered — more iterations recommended.';
+    verdict = 'Still improving, chains scattered — more iterations recommended.';
     color = '#b06030';
-    detail = `last 25% contributed ${(lastQFrac*100).toFixed(0)}% of gain, only ${nearBest}/${chainScores.length} chains within 2%`;
+    detail = `only ${nearBest}/${n} chains within 2% · last 25% contributed ${lastQPct.toFixed(0)}% of gain`;
   }
 
   return `<div class="derived-row" style="margin-top:4px;">
-    <label data-tip="Combines two signals: (1) whether the best score is still improving in the last 25% of iterations, and (2) whether multiple chains found similar scores. Both must agree for 'converged.' Scattered chains with a flat curve usually means the cooling schedule froze the search — try more iterations.">Convergence</label>:
+    <label data-tip="Combines two signals: (1) whether the best score is still improving, and (2) whether multiple chains independently found similar scores (within 2%). Both must agree for 'converged.' Scattered chains with a flat curve usually means the cooling schedule froze the search early — try more iterations.">Search quality</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(${detail})</span>
-  </div>`;
-}
-
-function chainAnalysisHtml(count) {
-  const chainScores = [];
-  for (const wm of workerMap) {
-    if (wm.lampCount === count && chainResults[wm.workerIdx]) {
-      chainScores.push(chainResults[wm.workerIdx].bestScore);
-    }
-  }
-  if (chainScores.length < 2) return '';
-  chainScores.sort((a, b) => b - a);
-  const n = chainScores.length;
-  const best = chainScores[0];
-
-  // Count how many chains are "within striking distance" of the best
-  // (within 2% of the best score). This scales naturally with chain count:
-  // - 4 chains, 3 within 2% → 75% agreement → well-explored
-  // - 20 chains, 2 within 2% → 10% agreement → lucky best
-  // - 20 chains, 12 within 2% → 60% agreement → well-explored
-  const threshold = best * 0.02; // 2% of best score
-  const nearBest = chainScores.filter(s => best - s <= threshold).length;
-  const agreementPct = nearBest / n * 100;
-
-  // Absolute count of confirmations matters more than proportion.
-  // 3+ chains independently finding similar scores is strong evidence
-  // regardless of whether you ran 4 chains or 40.
-  let verdict, color;
-  if (nearBest >= 3) {
-    verdict = `${nearBest} of ${n} chains within 2% of best — well-explored, more chains unlikely to help.`;
-    color = 'var(--accent)';
-  } else if (nearBest === 2) {
-    verdict = `${nearBest} of ${n} chains within 2% of best — reasonably confirmed.`;
-    color = 'var(--accent)';
-  } else {
-    verdict = `Best chain is isolated (no others within 2%) — more chains or iterations recommended.`;
-    color = '#b06030';
-  }
-
-  const topScores = chainScores.slice(0, Math.min(5, n)).map(s => s.toFixed(1)).join(', ');
-  const suffix = n > 5 ? `, ... (${n} total)` : '';
-  return `<div class="derived-row" style="margin-top:2px;">
-    <label data-tip="Counts how many chains found scores within 2% of the best. More agreement means the search space is well-explored and the best solution is reliable. If only one chain found a good score, it may have gotten lucky.">Chains</label>:
-    <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(top: ${topScores}${suffix})</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(${detail} · top: ${topScores}${suffix})</span>
   </div>`;
 }
 
