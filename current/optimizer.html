@@ -3559,7 +3559,7 @@ function switchToCount(count) {
   if (resultsArea.style.display !== 'none') {
     updateResultsDisplay(result, count);
     const breakdownEl = document.getElementById('scoreBreakdown');
-    breakdownEl.innerHTML += convergenceHtml(scoreHistories[count] || [], lastIterations);
+    breakdownEl.innerHTML += convergenceHtml(scoreHistories[count] || [], lastIterations, count);
     breakdownEl.innerHTML += chainAnalysisHtml(count);
   }
 }
@@ -3611,51 +3611,66 @@ document.getElementById('stopBtn').addEventListener('click', () => {
 // Finish optimization
 // ════════════════════════════════════════════════════════════════════
 
-function convergenceHtml(history, totalIter) {
+function convergenceHtml(history, totalIter, lampCount) {
   if (history.length < 6) return '';
 
-  // Compare the rate of improvement (score gain per step) in the last 25%
-  // vs the first 25%. If the rate has dropped to near zero, we're converged.
-  // If it's still high, more iterations would help.
-  const q1End = Math.floor(history.length * 0.25);
+  // The score history tracks best-across-chains, which flattens when one chain
+  // dominates early. To assess convergence properly, we combine two signals:
+  //
+  // 1. Score curve shape: what fraction of gain happened in the last 25%?
+  // 2. Chain agreement: are chains still scattered? (from chainResults)
+  //
+  // If the curve is flat BUT chains are scattered, it's undercooked (not converged).
+  // If the curve is flat AND chains agree, it's truly converged.
+
   const q3Start = Math.floor(history.length * 0.75);
-
-  // Rate = score gain / steps in that quarter
-  const firstQGain = history[q1End].score - history[0].score;
-  const firstQSteps = history[q1End].step - history[0].step || 1;
-  const firstQRate = firstQGain / firstQSteps;
-
-  const lastQGain = history[history.length - 1].score - history[q3Start].score;
-  const lastQSteps = history[history.length - 1].step - history[q3Start].step || 1;
-  const lastQRate = lastQGain / lastQSteps;
-
   const totalGain = history[history.length - 1].score - history[0].score;
+  const finalScore = history[history.length - 1].score;
   if (totalGain <= 0) return '<div class="derived-row" style="color:var(--ink-light);">No score improvement during run.</div>';
 
-  // How much has the improvement rate decayed?
-  // rateRatio near 0 = fully converged, near 1 = still improving at same pace
-  const rateRatio = firstQRate > 0 ? lastQRate / firstQRate : 0;
+  const lastQGain = history[history.length - 1].score - history[q3Start].score;
+  const lastQFrac = lastQGain / totalGain;
 
-  let verdict, color;
-  if (rateRatio < 0.02) {
-    verdict = 'Fully converged — more iterations unlikely to help.';
-    color = 'var(--accent)';
-  } else if (rateRatio < 0.1) {
-    verdict = 'Well converged — diminishing returns from more iterations.';
-    color = 'var(--accent)';
-  } else if (rateRatio < 0.3) {
-    verdict = 'Slowing down — more iterations would help somewhat.';
-    color = 'var(--ink-muted)';
-  } else {
-    verdict = 'Still improving rapidly — more iterations recommended.';
-    color = '#b06030';
+  // Check chain spread — are chains still scattered?
+  const chainScores = [];
+  for (const wm of workerMap) {
+    if (wm.lampCount === lampCount && chainResults[wm.workerIdx]) {
+      chainScores.push(chainResults[wm.workerIdx].bestScore);
+    }
+  }
+  let chainsScattered = false;
+  if (chainScores.length >= 2) {
+    chainScores.sort((a, b) => b - a);
+    const best = chainScores[0];
+    const threshold = best * 0.02;
+    const nearBest = chainScores.filter(s => best - s <= threshold).length;
+    chainsScattered = nearBest < 3 && chainScores.length >= 3;
   }
 
-  const rateDecay = ((1 - rateRatio) * 100).toFixed(0);
+  let verdict, color;
+  if (chainsScattered && lastQFrac < 0.05) {
+    // Curve is flat but chains disagree — undercooked, not converged
+    verdict = 'Chains are scattered — more iterations needed (curve is flat because one chain dominates).';
+    color = '#b06030';
+  } else if (lastQFrac > 0.2) {
+    verdict = 'Still improving — more iterations recommended.';
+    color = '#b06030';
+  } else if (lastQFrac > 0.08) {
+    verdict = 'Slowing down — more iterations would help somewhat.';
+    color = 'var(--ink-muted)';
+  } else if (lastQFrac > 0.02) {
+    verdict = 'Well converged — diminishing returns from more iterations.';
+    color = 'var(--accent)';
+  } else {
+    verdict = 'Fully converged — more iterations unlikely to help.';
+    color = 'var(--accent)';
+  }
+
+  const lastQPct = (lastQFrac * 100).toFixed(0);
   return `<div class="derived-row" style="margin-top:4px;">
-    <label data-tip="Compares the rate of score improvement (gain per step) in the last 25% of iterations to the first 25%. A high decay means the optimizer has found most of what it can; a low decay means it's still actively improving.">Convergence</label>:
+    <label data-tip="Combines the score improvement curve with chain agreement. A flat curve with scattered chains means iterations are too low (one chain got lucky early). A flat curve with chains agreeing means true convergence.">Convergence</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(improvement rate decayed ${rateDecay}% from start to end)</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(last 25%: ${lastQPct}% of gain${chainsScattered ? ', chains scattered' : ''})</span>
   </div>`;
 }
 
@@ -3747,7 +3762,7 @@ function _finishOptimizationInner() {
 
   // Add convergence to score breakdown
   const breakdownEl = document.getElementById('scoreBreakdown');
-  breakdownEl.innerHTML += convergenceHtml(scoreHistories[viewingCount] || [], lastIterations);
+  breakdownEl.innerHTML += convergenceHtml(scoreHistories[viewingCount] || [], lastIterations, viewingCount);
   breakdownEl.innerHTML += chainAnalysisHtml(viewingCount);
 
   // Final heatmap
