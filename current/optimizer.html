@@ -378,6 +378,37 @@ label[data-tip]:hover::after {
 }
 .btn-sm:hover { border-color: var(--ink-light); color: var(--ink); }
 
+/* ── Mount option pictograms ── */
+.mount-option {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.mount-option input[type="radio"] {
+  margin-top: 14px;
+  accent-color: var(--ink);
+}
+.mount-pic {
+  text-align: center;
+  padding: 6px 8px;
+  border: 1.5px solid var(--rule-light);
+  border-radius: 4px;
+  transition: border-color 0.15s;
+}
+.mount-option input:checked ~ .mount-pic {
+  border-color: var(--ink-muted);
+  background: rgba(245,240,232,0.5);
+}
+.mount-pic span {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
 .btn-row {
   display: flex;
   gap: 8px;
@@ -722,7 +753,7 @@ label[data-tip]:hover::after {
 
   <!-- ══ Card 2: Floor Plan & Barriers ══ -->
   <div class="card">
-    <h2>&#9313; Floor Plan &amp; Barriers</h2>
+    <h2>&#9313; Barriers</h2>
     <p class="instruction">Click two points to draw a barrier (interior wall). Right-click a barrier to remove it.</p>
     <div class="canvas-container">
       <canvas id="roomCanvas"></canvas>
@@ -739,7 +770,7 @@ label[data-tip]:hover::after {
     <h2>&#9314; Priority Areas</h2>
     <p class="instruction">Draw rectangles on the floor plan to define high-priority zones. For desk areas, choose which side people sit on — probes are placed outside the rectangle edge. The background is covered automatically at low weight.</p>
     <div class="category-row">
-      <label for="areaCategory">Category</label>
+      <label for="areaCategory" data-tip="Sets the default category for new areas drawn on the floor plan. Each area's category can be changed individually in the list below.">Default category</label>
       <select id="areaCategory">
         <option value="desk">Desk area (seated, 5.0ft) &mdash; weight 2.5</option>
         <option value="walkway">Walkway (standing, 5.5ft) &mdash; weight 1.5</option>
@@ -759,7 +790,11 @@ label[data-tip]:hover::after {
       <canvas id="areaCanvas"></canvas>
       <div class="canvas-coord-readout" id="areaCoordReadout"></div>
     </div>
-    <div class="item-list" id="areaList"></div>
+    <div class="readout" id="weightSummary" style="margin-bottom:0.5rem;"></div>
+    <details id="areaDetails" open>
+      <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;margin-bottom:0.5rem;">Area List <span id="areaCountBadge" style="font-family:var(--font-mono);font-weight:400;"></span></summary>
+      <div class="item-list" id="areaList"></div>
+    </details>
     <div class="btn-row">
       <button class="btn btn-danger" id="clearAreas">Clear All Areas</button>
     </div>
@@ -793,20 +828,74 @@ label[data-tip]:hover::after {
         <input type="number" id="chains" min="1" max="64" step="1">
       </div>
       <div class="control-group">
-        <label data-tip="'Anywhere' allows lamps at any ceiling position. 'Wall & ceiling edges' constrains lamps to wall surfaces and pillar faces, with aim directed away from the mounting surface.">Mounting</label>
-        <div class="radio-group">
-          <label><input type="radio" name="mounting" value="ceiling" checked> Anywhere (ceiling)</label>
-          <label><input type="radio" name="mounting" value="wall"> Wall &amp; ceiling edges</label>
-        </div>
+        <label for="evalSpacing" data-tip="Spacing of background evaluation probes in feet. Smaller values create more probes and increase accuracy but slow down optimization. Priority areas always use 1ft spacing.">Eval Grid Spacing (ft)</label>
+        <input type="number" id="evalSpacing" value="2.0" min="0.5" max="5.0" step="0.5">
+      </div>
+      <div class="control-group">
+        <label for="safetySpacing" data-tip="Spacing of safety evaluation probes in feet. The ACGIH eye dose model creates sharp peaks — 0.5ft is recommended. Smaller values improve peak detection but slow down optimization.">Safety Grid Spacing (ft)</label>
+        <input type="number" id="safetySpacing" value="0.5" min="0.25" max="2.0" step="0.25">
+      </div>
+      <div class="control-group">
+        <label for="seedInput" data-tip="Set a specific seed for reproducible results. Leave empty for a random seed based on the current time.">Random Seed</label>
+        <input type="number" id="seedInput" placeholder="auto">
       </div>
     </div>
+    <div style="display:flex; gap:1.5rem; margin-top:1rem; flex-wrap:wrap;">
+      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="Runs the optimizer for one fewer and one more lamp in addition to the selected count. Shows how much each additional lamp improves coverage.">
+        <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal analysis (also run n-1 and n+1 lamps)
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="After optimization, evaluates every subset of lamps to determine which are most critical. Shows installation priority order — which lamps to install first for maximum impact.">
+        <input type="checkbox" id="rankCheck" style="accent-color:var(--ink);"> Rank lamps (installation priority)
+      </label>
+    </div>
+    <details style="margin-top:1rem;">
+      <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;">Score existing configuration</summary>
+      <div style="margin-top:0.5rem;">
+        <textarea id="scoreInput" placeholder="Paste [[x,y,aim,tilt], ...]" style="width:100%;height:60px;font-family:var(--font-mono);font-size:0.75rem;padding:8px;border:1px solid var(--rule);border-radius:4px;background:#fff;color:var(--ink);resize:vertical;outline:none;"></textarea>
+        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+          <button class="btn" id="scoreBtn">Score</button>
+          <span id="scoreResult" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);"></span>
+        </div>
+        <div id="scoreBreakdownManual" style="margin-top:0.5rem;"></div>
+      </div>
+    </details>
     <div class="derived-values" id="derivedValues"></div>
   </div>
 
   <!-- ══ Card 5: Run ══ -->
   <div class="card">
     <h2>&#9316; Run Optimizer</h2>
-    <div class="start-section">
+    <div class="start-section" style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <label class="mount-option">
+          <input type="radio" name="mounting" value="ceiling" checked>
+          <div class="mount-pic">
+            <svg width="64" height="40" viewBox="0 0 80 50">
+              <rect x="2" y="2" width="76" height="46" fill="none" stroke="#d4cfc4" stroke-width="1.5" rx="2"/>
+              <line x1="2" y1="2" x2="78" y2="2" stroke="#8a8a8a" stroke-width="2"/>
+              <circle cx="25" cy="8" r="3" fill="#7a6a5a"/><line x1="25" y1="11" x2="25" y2="22" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+              <circle cx="55" cy="8" r="3" fill="#7a6a5a"/><line x1="55" y1="11" x2="55" y2="22" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+              <circle cx="40" cy="25" r="3" fill="#7a6a5a"/><line x1="40" y1="28" x2="40" y2="38" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+            </svg>
+            <span>Anywhere</span>
+          </div>
+        </label>
+        <label class="mount-option">
+          <input type="radio" name="mounting" value="wall">
+          <div class="mount-pic">
+            <svg width="64" height="40" viewBox="0 0 80 50">
+              <rect x="2" y="2" width="76" height="46" fill="none" stroke="#d4cfc4" stroke-width="1.5" rx="2"/>
+              <line x1="2" y1="2" x2="78" y2="2" stroke="#8a8a8a" stroke-width="2"/>
+              <circle cx="8" cy="20" r="3" fill="#7a6a5a"/><line x1="11" y1="20" x2="22" y2="20" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+              <circle cx="72" cy="15" r="3" fill="#7a6a5a"/><line x1="69" y1="15" x2="58" y2="15" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+              <circle cx="30" cy="8" r="3" fill="#7a6a5a"/><line x1="30" y1="11" x2="30" y2="22" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+              <circle cx="55" cy="8" r="3" fill="#7a6a5a"/><line x1="55" y1="11" x2="55" y2="22" stroke="#7a6a5a" stroke-width="1" stroke-dasharray="2,2"/>
+            </svg>
+            <span>Edges only</span>
+          </div>
+        </label>
+      </div>
+      <div style="flex:1;"></div>
       <button class="btn btn-primary" id="startBtn">&#9654; Start Optimization</button>
     </div>
 
@@ -844,6 +933,8 @@ label[data-tip]:hover::after {
           <tbody></tbody>
         </table>
       </div>
+      <div id="marginalArea" style="display:none; margin-top:1.5rem;"></div>
+      <div id="rankArea" style="display:none; margin-top:1.5rem;"></div>
       <div class="btn-row" style="margin-top:0.75rem;">
         <button class="btn" id="copyConfig">Copy Config</button>
         <button class="btn" id="downloadGuv">Download .guv</button>
@@ -981,35 +1072,36 @@ function computeTLV(hours) {
 
 function generatePoints() {
   const roomW = getRoomW(), roomD = getRoomD();
+  const evalSpacing = parseFloat(document.getElementById('evalSpacing').value) || 2.0;
   const points = [];
-  // Background grid: 2ft spacing, weight 0.2, height 5.0ft
-  for (let x = 1; x < roomW; x += 2) {
-    for (let y = 1; y < roomD; y += 2) {
-      points.push({ x, y, h: 5.0, w: 0.2 });
+  // Background grid: evalSpacing spacing, weight 0.2, height 5.0ft
+  const halfStep = evalSpacing / 2;
+  for (let x = halfStep; x < roomW; x += evalSpacing) {
+    for (let y = halfStep; y < roomD; y += evalSpacing) {
+      points.push({ x, y, h: 5.0, w: 0.2, _src: 'bg' });
     }
   }
   // Priority areas: 1ft spacing, area's height and weight
   for (const area of areas) {
     const cat = CATEGORIES[area.category];
     const seat = area.seating || 'inside';
+    const aw = area.weight != null ? area.weight : cat.weight;
     if (seat === 'inside') {
-      // Uniform probes inside the rectangle
       for (let x = area.x + 0.5; x < area.x + area.w; x += 1.0) {
         for (let y = area.y + 0.5; y < area.y + area.h; y += 1.0) {
-          points.push({ x, y, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+          points.push({ x, y, h: cat.height, w: aw, _src: area.category });
         }
       }
     } else {
-      // Probes along the specified edge, offset outside the rectangle
       if (seat === 'N' || seat === 'S') {
         const py = seat === 'N' ? area.y - SEAT_OFFSET : area.y + area.h + SEAT_OFFSET;
         for (let x = area.x + 0.5; x < area.x + area.w; x += 1.0) {
-          points.push({ x, y: py, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+          points.push({ x, y: py, h: cat.height, w: aw, _src: area.category });
         }
       } else {
         const px = seat === 'W' ? area.x - SEAT_OFFSET : area.x + area.w + SEAT_OFFSET;
         for (let y = area.y + 0.5; y < area.y + area.h; y += 1.0) {
-          points.push({ x: px, y, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+          points.push({ x: px, y, h: cat.height, w: aw, _src: area.category });
         }
       }
     }
@@ -1019,9 +1111,11 @@ function generatePoints() {
 
 function generateSafetyProbes() {
   const roomW = getRoomW(), roomD = getRoomD();
+  const safetySpacing = parseFloat(document.getElementById('safetySpacing').value) || 0.5;
   const probes = [];
-  for (let x = 0.25; x < roomW; x += 0.5) {
-    for (let y = 0.25; y < roomD; y += 0.5) {
+  const halfStep = safetySpacing / 2;
+  for (let x = halfStep; x < roomW; x += safetySpacing) {
+    for (let y = halfStep; y < roomD; y += safetySpacing) {
       probes.push({ x, y, h: 5.9 });
     }
   }
@@ -1296,17 +1390,66 @@ function updateAreaReadout() {
   areaReadout.textContent = fmtInt(Math.round(area)) + ' sq ft';
 }
 
+function updateWeightSummary() {
+  const points = generatePoints();
+  let bgCount = 0, bgWeight = 0;
+  const catData = {}; // {category: {count, weight}}
+  for (const p of points) {
+    if (p._src === 'bg') {
+      bgCount++; bgWeight += p.w;
+    } else {
+      const cat = p._src || 'other';
+      if (!catData[cat]) catData[cat] = { count: 0, weight: 0 };
+      catData[cat].count++;
+      catData[cat].weight += p.w;
+    }
+  }
+  const totalWeight = bgWeight + Object.values(catData).reduce((a, d) => a + d.weight, 0);
+  const totalCount = bgCount + Object.values(catData).reduce((a, d) => a + d.count, 0);
+  if (totalWeight === 0) {
+    document.getElementById('weightSummary').innerHTML = '';
+    return;
+  }
+  const pct = (v) => (v / totalWeight * 100).toFixed(0);
+
+  const tdR = 'style="text-align:right;padding:2px 10px 2px 0;"';
+  const tdRlast = 'style="text-align:right;padding:2px 0;"';
+  const tdL = 'style="padding:2px 10px 2px 0;"';
+  let rows = `<tr><td ${tdL} style="color:var(--ink-light);">Background</td><td ${tdR}>${bgCount}</td><td ${tdR}>${fmt(bgWeight)}</td><td ${tdRlast}>${pct(bgWeight)}%</td></tr>`;
+  for (const [cat, d] of Object.entries(catData)) {
+    const label = CATEGORIES[cat]?.label || cat;
+    const color = CATEGORIES[cat]?.stroke || 'var(--ink-muted)';
+    rows += `<tr><td ${tdL}><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:4px;vertical-align:middle;"></span>${label}</td><td ${tdR}>${d.count}</td><td ${tdR}>${fmt(d.weight)}</td><td ${tdRlast}>${pct(d.weight)}%</td></tr>`;
+  }
+  rows += `<tr style="border-top:1.5px solid var(--rule);font-weight:600;"><td ${tdL}>Total</td><td ${tdR}>${totalCount}</td><td ${tdR}>${fmt(totalWeight)}</td><td ${tdRlast}>100%</td></tr>`;
+
+  document.getElementById('weightSummary').innerHTML = `
+    <table style="border-collapse:collapse;font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-muted);width:auto;">
+      <thead><tr style="border-bottom:1.5px solid var(--rule);">
+        <th style="text-align:left;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);letter-spacing:0.04em;text-transform:uppercase;">Source</th>
+        <th style="text-align:right;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);">Probes</th>
+        <th style="text-align:right;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);">Weight</th>
+        <th style="text-align:right;padding:2px 0 2px 0;font-weight:600;color:var(--ink-light);">Share</th>
+      </tr></thead>
+      <tbody style="font-family:var(--font-mono);font-size:0.65rem;">${rows}</tbody>
+    </table>`;
+  document.getElementById('areaCountBadge').textContent = areas.length > 0 ? `(${areas.length})` : '';
+}
+
 function updateDerivedValues() {
   const hours = parseInt(tlvHoursInput.value);
   const { tlv_uwcm2, threshold } = computeTLV(hours);
   const points = generatePoints();
   const probes = generateSafetyProbes();
+  const evalSp = parseFloat(document.getElementById('evalSpacing').value) || 2.0;
+  const safeSp = parseFloat(document.getElementById('safetySpacing').value) || 0.5;
 
   derivedEl.innerHTML = `
     <div class="derived-row">Eye TLV at 222nm: <strong>${fmt(tlv_uwcm2, 2)} &micro;W/cm&sup2;</strong> (${TLV_EYE_MJ} mJ/cm&sup2; over ${hours}hrs)</div>
     <div class="derived-row">Safety threshold: <strong>${fmt(threshold, 2)} &micro;W/cm&sup2;</strong> (with 27% margin)</div>
-    <div class="derived-row">Eval points: <strong>~${fmtInt(points.length)}</strong> &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong></div>
+    <div class="derived-row">Eval points: <strong>~${fmtInt(points.length)}</strong> (${fmt(evalSp)}ft grid) &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong> (${fmt(safeSp)}ft grid)</div>
   `;
+  updateWeightSummary();
 }
 
 function updateBarrierList() {
@@ -1393,8 +1536,8 @@ function updateAreaList() {
     const wt = a.weight != null ? a.weight : cat.weight;
     row.innerHTML = `
       <select class="coord-select cat-select" data-idx="${i}">${options}</select>
-      <select class="coord-select seat-select" data-idx="${i}" style="width:80px;">${seatOptions}</select>
-      <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="${fmt(wt)}" class="coord-input wt-input" data-idx="${i}" style="width:42px;">
+      <select class="coord-select seat-select" data-idx="${i}" style="width:96px;">${seatOptions}</select>
+      <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="${fmt(wt)}" class="coord-input wt-input" data-idx="${i}" style="width:56px;">
       <span class="coord-label">x:</span><input type="number" step="0.1" value="${fmt(a.x)}" class="coord-input" data-idx="${i}" data-field="x">
       <span class="coord-label">y:</span><input type="number" step="0.1" value="${fmt(a.y)}" class="coord-input" data-idx="${i}" data-field="y">
       <span class="coord-label">w:</span><input type="number" step="0.1" value="${fmt(a.w)}" class="coord-input" data-idx="${i}" data-field="w">
@@ -1450,8 +1593,8 @@ function updateAreaList() {
   ).join('');
   addRow.innerHTML = `
     <select class="coord-select" id="addAreaCat">${addOptions}</select>
-    <select class="coord-select" id="addAreaSeat" style="width:80px;">${seatOpts}</select>
-    <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="2.5" class="coord-input" id="addAreaWt" style="width:42px;">
+    <select class="coord-select" id="addAreaSeat" style="width:96px;">${seatOpts}</select>
+    <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="2.5" class="coord-input" id="addAreaWt" style="width:56px;">
     <span class="coord-label">x:</span><input type="number" step="0.1" placeholder="x" class="coord-input" id="addAreaX">
     <span class="coord-label">y:</span><input type="number" step="0.1" placeholder="y" class="coord-input" id="addAreaY">
     <span class="coord-label">w:</span><input type="number" step="0.1" placeholder="w" class="coord-input" id="addAreaW">
@@ -1682,7 +1825,8 @@ for (const el of [roomWInput, roomDInput, ceilHInput, mountHInput]) {
   el.addEventListener('input', refresh);
 }
 tlvHoursInput.addEventListener('change', updateDerivedValues);
-for (const el of [numLampsInput, iterationsInput, chainsInput]) {
+for (const el of [numLampsInput, iterationsInput, chainsInput,
+    document.getElementById('evalSpacing'), document.getElementById('safetySpacing'), document.getElementById('seedInput')]) {
   el.addEventListener('input', updateDerivedValues);
 }
 document.querySelectorAll('input[name="mounting"]').forEach(r => {
@@ -2643,6 +2787,7 @@ let optimizerStartTime = 0;
 let elapsedTimer = null;
 let chainResults = [];
 let chainProgress = [];
+let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
 
 // ════════════════════════════════════════════════════════════════════
 // Start optimizer
@@ -2659,13 +2804,22 @@ startBtn.addEventListener('click', () => {
   const numLamps = parseInt(numLampsInput.value);
   const iterations = parseInt(iterationsInput.value);
   const numChains = parseInt(chainsInput.value);
+  const doMarginal = document.getElementById('marginalCheck').checked;
 
-  const config = {
+  // Determine lamp counts to optimize
+  const lampCounts = doMarginal
+    ? [numLamps - 1, numLamps, numLamps + 1].filter(n => n >= 1)
+    : [numLamps];
+
+  // Determine seed
+  const seedInputVal = document.getElementById('seedInput').value.trim();
+  const baseSeed = seedInputVal !== '' ? parseInt(seedInputVal) : (Date.now() % 100000);
+
+  const baseConfig = {
     roomWidth: getRoomW(),
     roomDepth: getRoomD(),
     ceilingHeight: getCeilH(),
     mountHeight: getMountH(),
-    numLamps,
     tlvHours: hours,
     tlv_uwcm2,
     threshold,
@@ -2677,7 +2831,8 @@ startBtn.addEventListener('click', () => {
     barriers: [...barriers],
   };
 
-  console.log('Starting optimizer:', numChains, 'chains x', iterations.toLocaleString(), 'iterations');
+  const totalWorkers = lampCounts.length * numChains;
+  console.log('Starting optimizer:', lampCounts.length, 'lamp count(s)', lampCounts, 'x', numChains, 'chains x', iterations.toLocaleString(), 'iterations');
   console.log('Eval points:', points.length, '| Safety probes:', probes.length);
 
   // Show progress area
@@ -2689,23 +2844,47 @@ startBtn.addEventListener('click', () => {
   optimizerRunning = true;
   optimizerStartTime = Date.now();
   bestResult = null;
-  chainResults = new Array(numChains).fill(null);
-  chainProgress = new Array(numChains).fill(0);
 
-  // Build progress bars
+  // Set up marginal tracking
+  marginalRunData = doMarginal ? {
+    lampCounts,
+    primaryN: numLamps,
+    results: {}, // count -> bestResult
+  } : null;
+
+  // Build progress bars grouped by lamp count
   const barsEl = document.getElementById('progressBars');
   barsEl.innerHTML = '';
-  for (let i = 0; i < numChains; i++) {
-    const wrap = document.createElement('div');
-    wrap.className = 'progress-bar-wrap';
-    wrap.innerHTML = `
-      <span class="progress-bar-label">Chain ${i + 1}</span>
-      <div class="progress-bar-bg"><div class="progress-bar-fill" id="pbar${i}"></div></div>
-      <span class="progress-pct" id="ppct${i}">0%</span>
-      <span class="progress-score" id="pscore${i}">&mdash;</span>
-    `;
-    barsEl.appendChild(wrap);
+  // We'll use a flat worker index and map (lampCountIdx, chainIdx) -> workerIdx
+  const workerMap = []; // [{lampCount, chainIdx, workerIdx}]
+  let workerIdx = 0;
+  for (const count of lampCounts) {
+    if (lampCounts.length > 1) {
+      const header = document.createElement('div');
+      header.style.cssText = 'font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);margin-top:0.5rem;margin-bottom:2px;';
+      header.textContent = count + ' lamp' + (count !== 1 ? 's' : '') + (count === numLamps ? ' (primary)' : '');
+      barsEl.appendChild(header);
+    }
+    for (let c = 0; c < numChains; c++) {
+      const wIdx = workerIdx++;
+      workerMap.push({ lampCount: count, chainIdx: c, workerIdx: wIdx });
+      const wrap = document.createElement('div');
+      wrap.className = 'progress-bar-wrap';
+      const label = lampCounts.length > 1
+        ? `${count}L C${c + 1}`
+        : `Chain ${c + 1}`;
+      wrap.innerHTML = `
+        <span class="progress-bar-label">${label}</span>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="pbar${wIdx}"></div></div>
+        <span class="progress-pct" id="ppct${wIdx}">0%</span>
+        <span class="progress-score" id="pscore${wIdx}">&mdash;</span>
+      `;
+      barsEl.appendChild(wrap);
+    }
   }
+
+  chainResults = new Array(totalWorkers).fill(null);
+  chainProgress = new Array(totalWorkers).fill(0);
 
   document.getElementById('bestScore').textContent = '\u2014';
   document.getElementById('elapsed').textContent = '0:00';
@@ -2727,70 +2906,106 @@ startBtn.addEventListener('click', () => {
   workers = [];
   let doneCount = 0;
 
-  for (let i = 0; i < numChains; i++) {
+  // Per lamp-count best tracking
+  const perCountBest = {};
+  for (const count of lampCounts) perCountBest[count] = null;
+
+  for (const wm of workerMap) {
+    const { lampCount, chainIdx, workerIdx: wIdx } = wm;
+    const config = { ...baseConfig, numLamps: lampCount };
     const worker = new Worker(workerURL);
     workers.push(worker);
 
     worker.onmessage = (e) => {
       const msg = e.data;
       if (msg.type === 'status') {
-        console.log(`Chain ${i}: GPU=${msg.gpu}${msg.error ? ' ('+msg.error+')' : ''}`);
+        console.log(`Worker ${wIdx} (${lampCount}L C${chainIdx+1}): GPU=${msg.gpu}${msg.error ? ' ('+msg.error+')' : ''}`);
       } else if (msg.type === 'progress') {
         const pct = Math.round(msg.step / msg.iterations * 100);
-        chainProgress[i] = pct;
-        document.getElementById('pbar' + i).style.width = pct + '%';
-        document.getElementById('ppct' + i).textContent = pct + '%';
-        document.getElementById('pscore' + i).textContent = msg.bestScore.toFixed(1);
+        chainProgress[wIdx] = pct;
+        document.getElementById('pbar' + wIdx).style.width = pct + '%';
+        document.getElementById('ppct' + wIdx).textContent = pct + '%';
+        document.getElementById('pscore' + wIdx).textContent = msg.bestScore.toFixed(1);
 
-        // Update best across all chains + highlight leader
-        if (!bestResult || msg.bestScore > bestResult.score) {
+        // Track per-count best
+        if (!perCountBest[lampCount] || msg.bestScore > perCountBest[lampCount].score) {
+          perCountBest[lampCount] = {
+            score: msg.bestScore, lamps: msg.lamps,
+            benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
+          };
+        }
+
+        // Update overall best (primary count only for heatmap/display)
+        const primaryBest = perCountBest[numLamps];
+        if (primaryBest && (!bestResult || primaryBest.score > bestResult.score)) {
+          bestResult = primaryBest;
+          document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
+          drawHeatmap();
+        } else if (!doMarginal && (!bestResult || msg.bestScore > bestResult.score)) {
           bestResult = {
-            score: msg.bestScore,
-            lamps: msg.lamps,
-            benefit: msg.benefit,
-            safetyPen: msg.safetyPen,
-            floorPen: msg.floorPen,
+            score: msg.bestScore, lamps: msg.lamps,
+            benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
           document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
           drawHeatmap();
         }
-        // Highlight the leading chain's score
-        for (let j = 0; j < numChains; j++) {
-          const el = document.getElementById('pscore' + j);
-          if (el) el.classList.toggle('best-chain', bestResult && el.textContent === bestResult.score.toFixed(1));
+
+        // Highlight leading scores per group
+        for (const wm2 of workerMap) {
+          const el = document.getElementById('pscore' + wm2.workerIdx);
+          const countBest = perCountBest[wm2.lampCount];
+          if (el && countBest) {
+            el.classList.toggle('best-chain', el.textContent === countBest.score.toFixed(1));
+          }
         }
       } else if (msg.type === 'done') {
-        chainResults[i] = msg;
-        document.getElementById('pbar' + i).style.width = '100%';
-        document.getElementById('ppct' + i).textContent = '100%';
+        chainResults[wIdx] = msg;
+        document.getElementById('pbar' + wIdx).style.width = '100%';
+        document.getElementById('ppct' + wIdx).textContent = '100%';
 
-        if (!bestResult || msg.bestScore > bestResult.score) {
+        if (!perCountBest[lampCount] || msg.bestScore > perCountBest[lampCount].score) {
+          perCountBest[lampCount] = {
+            score: msg.bestScore, lamps: msg.lamps,
+            benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
+          };
+        }
+
+        const primaryBest = perCountBest[numLamps];
+        if (primaryBest && (!bestResult || primaryBest.score > bestResult.score)) {
+          bestResult = primaryBest;
+          document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
+          drawHeatmap();
+        } else if (!doMarginal && (!bestResult || msg.bestScore > bestResult.score)) {
           bestResult = {
-            score: msg.bestScore,
-            lamps: msg.lamps,
-            benefit: msg.benefit,
-            safetyPen: msg.safetyPen,
-            floorPen: msg.floorPen,
+            score: msg.bestScore, lamps: msg.lamps,
+            benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
           document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
           drawHeatmap();
         }
 
         doneCount++;
-        if (doneCount >= numChains) {
+        if (doneCount >= totalWorkers) {
+          // Store marginal results
+          if (marginalRunData) {
+            marginalRunData.results = { ...perCountBest };
+          }
           finishOptimization();
         }
       }
     };
 
     worker.onerror = (err) => {
-      console.error(`Chain ${i} error:`, err);
+      console.error(`Worker ${wIdx} error:`, err);
       doneCount++;
-      if (doneCount >= numChains) finishOptimization();
+      if (doneCount >= totalWorkers) {
+        if (marginalRunData) marginalRunData.results = { ...perCountBest };
+        finishOptimization();
+      }
     };
 
-    // Start the worker
-    const seed = Math.floor(Math.random() * 2147483647) + i * 1000000;
+    // Start the worker with deterministic seed
+    const seed = baseSeed + lampCount * 1000000 + chainIdx * 7919;
     worker.postMessage({ type: 'start', config, seed });
   }
 
@@ -2883,8 +3098,221 @@ function finishOptimization() {
   // Final heatmap
   drawHeatmap();
 
+  // Clear marginal/rank areas
+  const marginalArea = document.getElementById('marginalArea');
+  const rankArea = document.getElementById('rankArea');
+  marginalArea.style.display = 'none';
+  marginalArea.innerHTML = '';
+  rankArea.style.display = 'none';
+  rankArea.innerHTML = '';
+
+  // Show marginal results if we ran marginal pre-optimization
+  if (marginalRunData && marginalRunData.results) {
+    const n = marginalRunData.primaryN;
+    const results = marginalRunData.results;
+    const rows = [];
+    for (const count of marginalRunData.lampCounts) {
+      const r = results[count];
+      if (r) rows.push({ lamps: count, score: r.score, benefit: r.benefit });
+    }
+
+    if (rows.length > 1) {
+      marginalArea.style.display = 'block';
+      let html = '<h3>Marginal Analysis</h3>';
+      html += '<table class="lamp-table"><thead><tr><th>Lamps</th><th>Score</th><th>Benefit</th><th>Delta</th><th>Change</th></tr></thead><tbody>';
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const isMain = r.lamps === n;
+        let delta = '', change = '';
+        if (i > 0) {
+          const d = r.score - rows[i - 1].score;
+          delta = (d >= 0 ? '+' : '') + d.toFixed(1);
+          const pct = rows[i - 1].score !== 0 ? (d / Math.abs(rows[i - 1].score) * 100) : 0;
+          change = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        } else {
+          delta = '\u2014';
+          change = '';
+        }
+        const style = isMain ? ' style="font-weight:600; color:var(--ink);"' : '';
+        html += `<tr${style}><td>${r.lamps}${isMain ? ' \u2190' : ''}</td><td>${r.score.toFixed(1)}</td><td>${r.benefit.toFixed(1)}</td><td>${delta}</td><td>${change}</td></tr>`;
+      }
+      html += '</tbody></table>';
+      marginalArea.innerHTML = html;
+    }
+  }
+
   // Scroll to results
   resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Run post-optimization analyses (rank only now, marginal handled above)
+  runPostAnalyses();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Post-optimization analyses (marginal + rank)
+// ════════════════════════════════════════════════════════════════════
+
+async function runPostAnalyses() {
+  const doRank = document.getElementById('rankCheck').checked;
+
+  if (doRank && bestResult) {
+    runRankAnalysis();
+  }
+}
+
+// ── Rank / Installation Priority Analysis ──
+function runRankAnalysis() {
+  const rankArea = document.getElementById('rankArea');
+  const lamps = bestResult.lamps;
+  const n = lamps.length;
+
+  if (n > 15) {
+    rankArea.style.display = 'block';
+    rankArea.innerHTML = '<h3>Installation Priority</h3><div class="derived-values" style="padding:0.75rem 1rem;"><div class="derived-row" style="font-style:italic; color:var(--ink-light);">Ranking is only available for \u226415 lamps (currently ' + n + ').</div></div>';
+    return;
+  }
+
+  rankArea.style.display = 'block';
+  rankArea.innerHTML = '<h3>Installation Priority</h3><div class="derived-values" style="padding:0.75rem 1rem;"><div class="derived-row" style="font-style:italic; color:var(--ink-light);">Computing installation priority...</div></div>';
+
+  // Use setTimeout to avoid blocking UI
+  setTimeout(() => {
+    const mountH = getMountH();
+    const hours = parseInt(tlvHoursInput.value);
+    const { threshold } = computeTLV(hours);
+    const points = generatePoints();
+    const probes = generateSafetyProbes();
+    const barrs = [...barriers];
+
+    // Pre-compute beam vectors for each lamp
+    const lampData = lamps.map(l => {
+      const aimRad = ((l.aim + 270) % 360) * Math.PI / 180;
+      const tiltRad = l.tilt * Math.PI / 180;
+      return {
+        x: l.x, y: l.y,
+        bx: Math.cos(aimRad) * Math.cos(tiltRad),
+        by: Math.sin(aimRad) * Math.cos(tiltRad),
+        bz: -Math.sin(tiltRad),
+      };
+    });
+
+    // Pre-compute per-lamp irradiance at eval points
+    const evalIrr = new Array(n);
+    for (let li = 0; li < n; li++) {
+      evalIrr[li] = new Float64Array(points.length);
+      const ld = lampData[li];
+      for (let pi = 0; pi < points.length; pi++) {
+        const pt = points[pi];
+        evalIrr[li][pi] = irrOneLamp(ld.x, ld.y, ld.bx, ld.by, ld.bz, mountH, pt.x, pt.y, pt.h, barrs);
+      }
+    }
+
+    // Pre-compute per-lamp irradiance at safety points
+    const safetyIrr = new Array(n);
+    for (let li = 0; li < n; li++) {
+      safetyIrr[li] = new Float64Array(probes.length);
+      const ld = lampData[li];
+      for (let pi = 0; pi < probes.length; pi++) {
+        const pt = probes[pi];
+        safetyIrr[li][pi] = irrOneLampSafety(ld.x, ld.y, ld.bx, ld.by, ld.bz, mountH, pt.x, pt.y, pt.h, barrs);
+      }
+    }
+
+    // Score a subset of lamps
+    function scoreSubset(indices) {
+      let benefit = 0, floorPen = 0, safetyPen = 0;
+      for (let pi = 0; pi < points.length; pi++) {
+        let totalE = 0;
+        for (const li of indices) totalE += evalIrr[li][pi];
+        const w = points[pi].w;
+        benefit += w * Math.min(totalE, BENEFIT_CAP);
+        if (totalE < MIN_IRRADIANCE) {
+          const gap = MIN_IRRADIANCE - totalE;
+          floorPen += MIN_IRR_PENALTY_WEIGHT * w * gap * gap;
+        }
+      }
+      for (let pi = 0; pi < probes.length; pi++) {
+        let totalS = 0;
+        for (const li of indices) totalS += safetyIrr[li][pi];
+        const over = totalS - threshold;
+        if (over > 0) safetyPen += over;
+      }
+      return benefit - SAFETY_PENALTY_FINAL * safetyPen - floorPen;
+    }
+
+    // Find best subset of size k from a given set of indices
+    function bestSubsetOfSize(indices, k) {
+      if (k >= indices.length) return { indices: [...indices], score: scoreSubset(indices) };
+      if (k === 0) return { indices: [], score: scoreSubset([]) };
+
+      let bestScore = -Infinity;
+      let bestCombo = null;
+
+      // Generate combinations of indices of size k
+      function combine(start, current) {
+        if (current.length === k) {
+          const s = scoreSubset(current);
+          if (s > bestScore) {
+            bestScore = s;
+            bestCombo = [...current];
+          }
+          return;
+        }
+        const remaining = k - current.length;
+        for (let i = start; i <= indices.length - remaining; i++) {
+          current.push(indices[i]);
+          combine(i + 1, current);
+          current.pop();
+        }
+      }
+
+      combine(0, []);
+      return { indices: bestCombo, score: bestScore };
+    }
+
+    // Build installation order: from full set, remove lamps one at a time
+    // For each size k from n down to 1, find the best k-lamp subset
+    const allIndices = Array.from({ length: n }, (_, i) => i);
+    const subsetResults = [];
+    subsetResults[n] = { indices: allIndices, score: scoreSubset(allIndices) };
+
+    for (let k = n - 1; k >= 1; k--) {
+      subsetResults[k] = bestSubsetOfSize(allIndices, k);
+    }
+
+    // Determine installation order: which lamp is added at each step
+    const installOrder = [];
+    let prevSet = new Set();
+    for (let k = 1; k <= n; k++) {
+      const curSet = new Set(subsetResults[k].indices);
+      // Find the lamp that was added
+      for (const idx of curSet) {
+        if (!prevSet.has(idx)) {
+          installOrder.push({
+            lampIdx: idx,
+            lamp: lamps[idx],
+            score: subsetResults[k].score,
+            delta: k === 1 ? null : subsetResults[k].score - subsetResults[k - 1].score,
+          });
+          break;
+        }
+      }
+      prevSet = curSet;
+    }
+
+    // Build HTML table
+    let html = '<h3>Installation Priority</h3>';
+    html += '<table class="lamp-table"><thead><tr><th>#</th><th>Lamp</th><th>Position</th><th>Score</th><th>Delta</th></tr></thead><tbody>';
+    installOrder.forEach((entry, i) => {
+      const l = entry.lamp;
+      const delta = entry.delta !== null ? ((entry.delta >= 0 ? '+' : '') + entry.delta.toFixed(1)) : '\u2014';
+      const note = i === 0 ? ' <span style="color:var(--ink-light); font-family:var(--font-sans); font-size:0.6rem;">\u2190 install first</span>' : '';
+      html += `<tr><td>${i + 1}</td><td>L${entry.lampIdx + 1}</td><td>(${l.x.toFixed(1)}, ${l.y.toFixed(1)})</td><td>${entry.score.toFixed(1)}</td><td>${delta}${note}</td></tr>`;
+    });
+    html += '</tbody></table>';
+
+    rankArea.innerHTML = html;
+  }, 50);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2896,14 +3324,13 @@ document.getElementById('copyConfig').addEventListener('click', () => {
     navigator.clipboard.writeText('[]');
     return;
   }
-  const configOut = bestResult.lamps.map((l, i) => ({
-    id: i + 1,
-    x: parseFloat(l.x.toFixed(2)),
-    y: parseFloat(l.y.toFixed(2)),
-    aim_deg: parseFloat(l.aim.toFixed(0)),
-    tilt_deg: parseFloat(l.tilt.toFixed(0)),
-  }));
-  const json = JSON.stringify(configOut, null, 2);
+  const configOut = bestResult.lamps.map(l => [
+    parseFloat(l.x.toFixed(2)),
+    parseFloat(l.y.toFixed(2)),
+    parseFloat(l.aim.toFixed(1)),
+    parseFloat(l.tilt.toFixed(0)),
+  ]);
+  const json = JSON.stringify(configOut);
   navigator.clipboard.writeText(json).then(() => {
     const btn = document.getElementById('copyConfig');
     btn.textContent = 'Copied!';
@@ -3087,6 +3514,77 @@ document.getElementById('downloadGuv').addEventListener('click', () => {
 // ════════════════════════════════════════════════════════════════════
 
 window.addEventListener('resize', refresh);
+
+// ════════════════════════════════════════════════════════════════════
+// Score existing configuration
+// ════════════════════════════════════════════════════════════════════
+
+document.getElementById('scoreBtn').addEventListener('click', () => {
+  const input = document.getElementById('scoreInput').value.trim();
+  const resultEl = document.getElementById('scoreResult');
+  const breakdownEl = document.getElementById('scoreBreakdownManual');
+  try {
+    const lampArray = JSON.parse(input);
+    if (!Array.isArray(lampArray) || lampArray.length === 0) throw new Error('Expected array of [x,y,aim,tilt]');
+    const lamps = lampArray.map((l, i) => {
+      if (!Array.isArray(l) || l.length < 4) throw new Error(`Lamp ${i}: expected [x,y,aim,tilt]`);
+      return { x: l[0], y: l[1], aim: l[2], tilt: l[3] };
+    });
+
+    const mountH = getMountH();
+    const hours = parseInt(tlvHoursInput.value);
+    const { threshold } = computeTLV(hours);
+    const points = generatePoints();
+    const probes = generateSafetyProbes();
+    const barrs = [...barriers];
+
+    // Precompute beam vectors
+    const lampData = lamps.map(l => {
+      const aimRad = ((l.aim + 270) % 360) * Math.PI / 180;
+      const tiltRad = l.tilt * Math.PI / 180;
+      return {
+        x: l.x, y: l.y,
+        bx: Math.cos(aimRad) * Math.cos(tiltRad),
+        by: Math.sin(aimRad) * Math.cos(tiltRad),
+        bz: -Math.sin(tiltRad),
+      };
+    });
+
+    // Compute score
+    let benefit = 0, floorPen = 0, safetyPen = 0;
+    for (let pi = 0; pi < points.length; pi++) {
+      const pt = points[pi];
+      let totalE = 0;
+      for (const ld of lampData) {
+        totalE += irrOneLamp(ld.x, ld.y, ld.bx, ld.by, ld.bz, mountH, pt.x, pt.y, pt.h, barrs);
+      }
+      benefit += pt.w * Math.min(totalE, BENEFIT_CAP);
+      if (totalE < MIN_IRRADIANCE) {
+        const gap = MIN_IRRADIANCE - totalE;
+        floorPen += MIN_IRR_PENALTY_WEIGHT * pt.w * gap * gap;
+      }
+    }
+    for (let pi = 0; pi < probes.length; pi++) {
+      const pt = probes[pi];
+      let totalS = 0;
+      for (const ld of lampData) {
+        totalS += irrOneLampSafety(ld.x, ld.y, ld.bx, ld.by, ld.bz, mountH, pt.x, pt.y, pt.h, barrs);
+      }
+      const over = totalS - threshold;
+      if (over > 0) safetyPen += over;
+    }
+    const score = benefit - SAFETY_PENALTY_FINAL * safetyPen - floorPen;
+
+    resultEl.textContent = '';
+    breakdownEl.innerHTML = `<div class="derived-values" style="padding:0.75rem 1rem;">
+      <div class="derived-row">Score: <strong>${score.toFixed(2)}</strong></div>
+      <div class="derived-row">Benefit: <strong>${benefit.toFixed(2)}</strong> | Safety Penalty: <strong>${safetyPen.toFixed(4)}</strong> | Floor Penalty: <strong>${floorPen.toFixed(2)}</strong></div>
+    </div>`;
+  } catch (err) {
+    resultEl.textContent = 'Error: ' + err.message;
+    breakdownEl.innerHTML = '';
+  }
+});
 
 // ════════════════════════════════════════════════════════════════════
 // GeoJSON Import / Export

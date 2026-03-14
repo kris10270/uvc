@@ -2057,6 +2057,29 @@ document.querySelectorAll('.plume-btn').forEach(btn=>{
 });
 
 // ═══════════════════════════════════════════════════════
+// URL PARAMETER IMPORT (from optimizer "View in Explorer" link)
+// ═══════════════════════════════════════════════════════
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('lamps')) {
+    try {
+      const lampStr = params.get('lamps');
+      const parsed = lampStr.split(';').map(s => {
+        const parts = s.split(',').map(Number);
+        if (parts.length >= 4 && parts.every(n => !isNaN(n))) return parts;
+        return null;
+      }).filter(Boolean);
+      if (parsed.length > 0) {
+        lamps = parsed;
+        isCustomConfig = true;
+        document.getElementById('status').textContent = `Loaded ${lamps.length} lamps from URL`;
+        document.getElementById('lampInput').value = JSON.stringify(lamps);
+      }
+    } catch(e) { console.warn('Failed to parse lamps URL param:', e); }
+  }
+})();
+
+// ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
 switchRoom(false);
