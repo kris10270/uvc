@@ -3383,6 +3383,7 @@ startBtn.addEventListener('click', () => {
         <div class="progress-bar-bg"><div class="progress-bar-fill" id="pbar${wIdx}"></div></div>
         <span class="progress-pct" id="ppct${wIdx}">0%</span>
         <span class="progress-score" id="pscore${wIdx}">&mdash;</span>
+        <span class="progress-temp" id="ptemp${wIdx}" style="font-family:var(--font-mono);font-size:0.55rem;color:var(--ink-light);min-width:40px;text-align:right;"></span>
       `;
       wrap.style.cursor = 'pointer';
       const chartContainer = document.createElement('div');
@@ -3492,6 +3493,13 @@ startBtn.addEventListener('click', () => {
         document.getElementById('pbar' + wIdx).style.width = pct + '%';
         document.getElementById('ppct' + wIdx).textContent = pct + '%';
         document.getElementById('pscore' + wIdx).textContent = msg.bestScore.toFixed(1);
+        const tempEl = document.getElementById('ptemp' + wIdx);
+        if (tempEl && msg.temp != null) {
+          const t = msg.temp;
+          tempEl.textContent = t >= 0.1 ? `T=${t.toFixed(2)}` : t >= 0.01 ? `T=${t.toFixed(3)}` : `T=${t.toExponential(1)}`;
+          // Color: warm when hot, cool when cold
+          tempEl.style.color = t > 0.5 ? '#b06030' : t > 0.1 ? '#8a7050' : 'var(--ink-light)';
+        }
 
         // Track per-count best
         if (!perCountBest[lampCount] || msg.bestScore > perCountBest[lampCount].score) {
