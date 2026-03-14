@@ -3106,6 +3106,7 @@ async function runSA() {
         step: step + 1,
         iterations,
         bestScore,
+        currentScore: curScore,
         lamps: bestLamps,
         benefit: bestBenefit,
         safetyPen: bestSafetyPen,
@@ -3402,12 +3403,13 @@ startBtn.addEventListener('click', () => {
             }
             scoreHistories[lampCount].push({ step: msg.step, score: currentBest });
           }
-          // Per-chain (for convergence analysis)
+          // Per-chain current score (for convergence analysis)
+          // Uses currentScore (the SA state's score) not bestScore (which plateaus)
           if (chainScoreHistories[lampCount]) {
             if (!chainScoreHistories[lampCount][chainIdx]) {
               chainScoreHistories[lampCount][chainIdx] = [];
             }
-            chainScoreHistories[lampCount][chainIdx].push({ step: msg.step, score: msg.bestScore });
+            chainScoreHistories[lampCount][chainIdx].push({ step: msg.step, score: msg.currentScore != null ? msg.currentScore : msg.bestScore });
           }
           if (lampCount === viewingCount) drawScoreChart();
         }
