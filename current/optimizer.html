@@ -3009,6 +3009,8 @@ let elapsedTimer = null;
 let chainResults = [];
 let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
+let scoreHistory = []; // [{step, score}] — convergence tracking for primary lamp count
+let lastIterations = 500000; // iterations used in the last run
 
 // ════════════════════════════════════════════════════════════════════
 // Start optimizer
@@ -3065,6 +3067,7 @@ startBtn.addEventListener('click', () => {
   // Show progress area
   const progressArea = document.getElementById('progressArea');
   progressArea.style.display = 'block';
+  document.getElementById('stopBtn').style.display = '';
   document.getElementById('resultsArea').style.display = 'none';
   startBtn.disabled = true;
   startBtn.textContent = 'Running...';
@@ -3112,8 +3115,8 @@ startBtn.addEventListener('click', () => {
 
   chainResults = new Array(totalWorkers).fill(null);
   chainProgress = new Array(totalWorkers).fill(0);
-  // Track score history for convergence analysis (primary lamp count)
-  var scoreHistory = []; // [{step, score}]
+  scoreHistory = [];
+  lastIterations = iterations;
 
   document.getElementById('bestScore').textContent = '\u2014';
   document.getElementById('elapsed').textContent = '0:00';
@@ -3169,10 +3172,11 @@ startBtn.addEventListener('click', () => {
             score: msg.bestScore, lamps: msg.lamps,
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
-          // Record score history for primary count
-          if (lampCount === numLamps) {
-            scoreHistory.push({ step: msg.step, score: msg.bestScore });
-          }
+        }
+        // Record score history for primary count (every progress report, not just improvements)
+        if (lampCount === numLamps) {
+          const currentBest = perCountBest[lampCount]?.score || msg.bestScore;
+          scoreHistory.push({ step: msg.step, score: currentBest });
         }
 
         // Update overall best (primary count only for heatmap/display)
@@ -3279,6 +3283,9 @@ function finishOptimization() {
   clearInterval(elapsedTimer);
   startBtn.disabled = false;
   startBtn.textContent = '\u25B6 Start Optimization';
+  try { _finishOptimizationInner(); } catch(e) { console.error('finishOptimization error:', e); }
+}
+function _finishOptimizationInner() {
 
   // Final elapsed
   const secs = Math.floor((Date.now() - optimizerStartTime) / 1000);
@@ -3286,9 +3293,10 @@ function finishOptimization() {
   const s = secs % 60;
   document.getElementById('elapsed').textContent = m + ':' + (s < 10 ? '0' : '') + s;
 
-  // Terminate workers
+  // Terminate workers and hide stop button
   for (const w of workers) w.terminate();
   workers = [];
+  document.getElementById('stopBtn').style.display = 'none';
 
   if (!bestResult) {
     console.log('No results obtained.');
@@ -3350,7 +3358,7 @@ function finishOptimization() {
       <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${bestResult.floorPen.toFixed(2)}</strong>
     </div>
     <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(bestResult.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
-    ${convergenceHtml(scoreHistory, iterations)}
+    ${convergenceHtml(scoreHistory, lastIterations)}
   `;
 
   // Lamp table
