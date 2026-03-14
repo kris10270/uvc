@@ -1458,11 +1458,14 @@ function resizeCanvases() {
     c.style.width = totalW + 'px';
     c.style.height = totalH + 'px';
   }
-  // Score chart: full width, fixed height
+  // Score chart: full width, fixed height, retina-aware
   const scoreChart = document.getElementById('scoreChart');
-  scoreChart.width = totalW;
-  scoreChart.height = 120;
+  const dpr = window.devicePixelRatio || 1;
+  scoreChart.width = totalW * dpr;
+  scoreChart.height = 120 * dpr;
   scoreChart.style.width = totalW + 'px';
+  scoreChart.style.height = '120px';
+  scoreChart.getContext('2d').scale(dpr, dpr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2181,12 +2184,18 @@ function irrOneLampSafety(lx, ly, bx, by, bz, mountH, px, py, ph, barrs) {
 
 let bestResult = null; // { lamps: [{x,y,aim,tilt}], score, benefit, safetyPen, floorPen }
 
+// Y-axis bounds that only expand (never shrink during a run)
+let chartYMin = Infinity, chartYMax = -Infinity;
+
 function drawScoreChart() {
   const canvas = document.getElementById('scoreChart');
+  const scoreHistory = scoreHistories[viewingCount] || [];
   if (!canvas || scoreHistory.length < 2) return;
+  const dpr = window.devicePixelRatio || 1;
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const pad = { top: 18, right: 12, bottom: 22, left: 50 };
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = canvas.width / dpr, H = canvas.height / dpr;
+  const pad = { top: 18, right: 50, bottom: 22, left: 50 };
   const plotW = W - pad.left - pad.right;
   const plotH = H - pad.top - pad.bottom;
 
@@ -2194,16 +2203,18 @@ function drawScoreChart() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, W, H);
 
-  // Data range
-  const scores = scoreHistory.map(h => h.score);
-  const minScore = Math.min(...scores);
-  const maxScore = Math.max(...scores);
-  const scoreRange = maxScore - minScore || 1;
-  const maxStep = scoreHistory[scoreHistory.length - 1].step;
+  // X axis: fixed at 0 → total iterations
+  const totalIter = lastIterations || 500000;
 
-  // Y axis: pad 5% on each side
-  const yMin = minScore - scoreRange * 0.05;
-  const yMax = maxScore + scoreRange * 0.05;
+  // Y axis: expand only (accumulate min/max across all counts and redraws)
+  const scores = scoreHistory.map(h => h.score);
+  const dataMin = Math.min(...scores);
+  const dataMax = Math.max(...scores);
+  chartYMin = Math.min(chartYMin, dataMin);
+  chartYMax = Math.max(chartYMax, dataMax);
+  const scoreRange = chartYMax - chartYMin || 1;
+  const yMin = chartYMin - scoreRange * 0.05;
+  const yMax = chartYMax + scoreRange * 0.1; // more room at top for label
   const yRange = yMax - yMin;
 
   // Grid lines
@@ -2215,33 +2226,55 @@ function drawScoreChart() {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
   }
 
-  // Score line
+  // If marginal, draw other counts as faint lines for comparison
+  if (activeLampCounts.length > 1) {
+    for (const count of activeLampCounts) {
+      if (count === viewingCount) continue;
+      const otherHistory = scoreHistories[count] || [];
+      if (otherHistory.length < 2) continue;
+      ctx.strokeStyle = 'rgba(180,170,155,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < otherHistory.length; i++) {
+        const x = pad.left + (otherHistory[i].step / totalIter) * plotW;
+        const y = pad.top + plotH * (1 - (otherHistory[i].score - yMin) / yRange);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Primary line for viewed count
   ctx.strokeStyle = '#5a4a3a';
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (let i = 0; i < scoreHistory.length; i++) {
-    const x = pad.left + (scoreHistory[i].step / maxStep) * plotW;
+    const x = pad.left + (scoreHistory[i].step / totalIter) * plotW;
     const y = pad.top + plotH * (1 - (scoreHistory[i].score - yMin) / yRange);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.stroke();
 
-  // Fill under curve
-  ctx.lineTo(pad.left + plotW, pad.top + plotH);
+  // Fill under primary curve
+  const lastPt = scoreHistory[scoreHistory.length - 1];
+  const lastX = pad.left + (lastPt.step / totalIter) * plotW;
+  ctx.lineTo(lastX, pad.top + plotH);
   ctx.lineTo(pad.left, pad.top + plotH);
   ctx.closePath();
   ctx.fillStyle = 'rgba(90,74,58,0.06)';
   ctx.fill();
 
-  // Current score label
-  const lastScore = scores[scores.length - 1];
-  const lastX = pad.left + plotW;
+  // Current score dot + label
+  const lastScore = lastPt.score;
   const lastY = pad.top + plotH * (1 - (lastScore - yMin) / yRange);
   ctx.fillStyle = '#5a4a3a';
-  ctx.font = 'bold 11px Inter, sans-serif';
-  ctx.textAlign = 'right';
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(lastScore.toFixed(1), lastX - 4, Math.max(pad.top + 8, lastY));
+  ctx.fillText(lastScore.toFixed(1), lastX + 6, Math.max(pad.top + 8, lastY));
 
   // Axes
   ctx.strokeStyle = '#d4cfc4';
@@ -2263,20 +2296,20 @@ function drawScoreChart() {
     ctx.fillText(val.toFixed(0), pad.left - 4, y);
   }
 
-  // X axis labels
+  // X axis: 0%, 50%, 100%
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const stepK = maxStep / 1000;
-  ctx.fillText('0', pad.left, pad.top + plotH + 4);
-  ctx.fillText(stepK.toFixed(0) + 'K', pad.left + plotW, pad.top + plotH + 4);
-  ctx.fillText(Math.round(stepK / 2) + 'K', pad.left + plotW / 2, pad.top + plotH + 4);
+  ctx.fillText('0%', pad.left, pad.top + plotH + 4);
+  ctx.fillText('50%', pad.left + plotW / 2, pad.top + plotH + 4);
+  ctx.fillText('100%', pad.left + plotW, pad.top + plotH + 4);
 
-  // Title
+  // Title with count label
   ctx.fillStyle = '#8a8a8a';
   ctx.font = '600 9px Inter, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText('BEST SCORE', pad.left, 4);
+  const countLabel = activeLampCounts.length > 1 ? ` (${viewingCount}L)` : '';
+  ctx.fillText('BEST SCORE' + countLabel, pad.left, 4);
 }
 
 function drawHeatmap() {
@@ -3143,7 +3176,7 @@ let elapsedTimer = null;
 let chainResults = [];
 let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
-let scoreHistory = []; // [{step, score}] — convergence tracking for primary lamp count
+let scoreHistories = {}; // {lampCount: [{step, score}]} — per-count convergence tracking
 let lastIterations = 500000; // iterations used in the last run
 let viewingCount = null; // which lamp count we're viewing (for marginal toggle)
 let activeLampCounts = []; // lamp counts in this run
@@ -3252,7 +3285,9 @@ startBtn.addEventListener('click', () => {
 
   chainResults = new Array(totalWorkers).fill(null);
   chainProgress = new Array(totalWorkers).fill(0);
-  scoreHistory = [];
+  scoreHistories = {};
+  for (const count of lampCounts) scoreHistories[count] = [];
+  chartYMin = Infinity; chartYMax = -Infinity;
   lastIterations = iterations;
 
   // Build progress stats — show per-count scores when marginal
@@ -3336,19 +3371,32 @@ startBtn.addEventListener('click', () => {
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
         }
-        // Record score history for primary count (every progress report, not just improvements)
-        if (lampCount === numLamps) {
+        // Record score history for all counts
+        {
           const currentBest = perCountBest[lampCount]?.score || msg.bestScore;
-          scoreHistory.push({ step: msg.step, score: currentBest });
-          drawScoreChart();
+          if (scoreHistories[lampCount]) {
+            scoreHistories[lampCount].push({ step: msg.step, score: currentBest });
+          }
+          if (lampCount === viewingCount) drawScoreChart();
         }
 
         // Update per-count score display
         if (doMarginal) {
-          const countBest = perCountBest[lampCount];
-          if (countBest) {
-            const el = document.getElementById('bestScore_' + lampCount);
-            if (el) el.textContent = countBest.score.toFixed(1);
+          const sortedCounts = activeLampCounts.slice().sort((a, b) => a - b);
+          for (let ci = 0; ci < sortedCounts.length; ci++) {
+            const c = sortedCounts[ci];
+            const best = perCountBest[c];
+            const el = document.getElementById('bestScore_' + c);
+            if (!el || !best) continue;
+            let text = best.score.toFixed(1);
+            if (ci > 0) {
+              const prevBest = perCountBest[sortedCounts[ci - 1]];
+              if (prevBest) {
+                const d = best.score - prevBest.score;
+                text += ` (${d >= 0 ? '+' : ''}${d.toFixed(1)})`;
+              }
+            }
+            el.textContent = text;
           }
         }
 
@@ -3389,10 +3437,21 @@ startBtn.addEventListener('click', () => {
 
         // Update per-count score display
         if (doMarginal) {
-          const countBest = perCountBest[lampCount];
-          if (countBest) {
-            const el = document.getElementById('bestScore_' + lampCount);
-            if (el) el.textContent = countBest.score.toFixed(1);
+          const sortedCounts = activeLampCounts.slice().sort((a, b) => a - b);
+          for (let ci = 0; ci < sortedCounts.length; ci++) {
+            const c = sortedCounts[ci];
+            const best = perCountBest[c];
+            const el = document.getElementById('bestScore_' + c);
+            if (!el || !best) continue;
+            let text = best.score.toFixed(1);
+            if (ci > 0) {
+              const prevBest = perCountBest[sortedCounts[ci - 1]];
+              if (prevBest) {
+                const d = best.score - prevBest.score;
+                text += ` (${d >= 0 ? '+' : ''}${d.toFixed(1)})`;
+              }
+            }
+            el.textContent = text;
           }
         }
 
@@ -3473,13 +3532,14 @@ function buildCountToggle(containerId, lampCounts, primaryN, onChange) {
 function switchToCount(count) {
   const result = perCountBest[count];
   if (!result) return;
-  // Update heatmap
   bestResult = result;
   drawHeatmap();
-  // Update results display if visible
+  drawScoreChart();
   const resultsArea = document.getElementById('resultsArea');
   if (resultsArea.style.display !== 'none') {
     updateResultsDisplay(result, count);
+    const breakdownEl = document.getElementById('scoreBreakdown');
+    breakdownEl.innerHTML += convergenceHtml(scoreHistories[count] || [], lastIterations);
   }
 }
 
@@ -3613,7 +3673,7 @@ function _finishOptimizationInner() {
 
   // Add convergence to score breakdown
   const breakdownEl = document.getElementById('scoreBreakdown');
-  breakdownEl.innerHTML += convergenceHtml(scoreHistory, lastIterations);
+  breakdownEl.innerHTML += convergenceHtml(scoreHistories[viewingCount] || [], lastIterations);
 
   // Final heatmap
   drawHeatmap();
@@ -3639,24 +3699,61 @@ function _finishOptimizationInner() {
     if (rows.length > 1) {
       marginalArea.style.display = 'block';
       let html = '<h3>Marginal Analysis</h3>';
-      html += '<table class="lamp-table"><thead><tr><th>Lamps</th><th>Score</th><th>Benefit</th><th>Delta</th><th>Change</th></tr></thead><tbody>';
+      html += '<table class="lamp-table"><thead><tr><th>Lamps</th><th>Score</th><th>Benefit</th><th>Delta</th><th>Change</th><th>Verdict</th></tr></thead><tbody>';
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         const isMain = r.lamps === n;
-        let delta = '', change = '';
+        let delta = '', change = '', deltaNum = 0, pctNum = 0, verdict = '';
         if (i > 0) {
-          const d = r.score - rows[i - 1].score;
-          delta = (d >= 0 ? '+' : '') + d.toFixed(1);
-          const pct = rows[i - 1].score !== 0 ? (d / Math.abs(rows[i - 1].score) * 100) : 0;
-          change = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+          deltaNum = r.score - rows[i - 1].score;
+          delta = (deltaNum >= 0 ? '+' : '') + deltaNum.toFixed(1);
+          pctNum = rows[i - 1].score !== 0 ? (deltaNum / Math.abs(rows[i - 1].score) * 100) : 0;
+          change = (pctNum >= 0 ? '+' : '') + pctNum.toFixed(1) + '%';
+          // Interpret the marginal value of this lamp
+          if (deltaNum <= 0) {
+            verdict = '<span style="color:#b06030;">No improvement — skip</span>';
+          } else if (pctNum < 2) {
+            verdict = '<span style="color:var(--ink-light);">Minimal gain</span>';
+          } else if (pctNum < 5) {
+            verdict = '<span style="color:var(--ink-muted);">Modest gain</span>';
+          } else if (pctNum < 15) {
+            verdict = '<span style="color:var(--accent);">Worthwhile</span>';
+          } else {
+            verdict = '<span style="color:var(--ink);font-weight:600;">Strong improvement</span>';
+          }
         } else {
           delta = '\u2014';
-          change = '';
+          verdict = '<span style="color:var(--ink-light);">Baseline</span>';
         }
         const style = isMain ? ' style="font-weight:600; color:var(--ink);"' : '';
-        html += `<tr${style}><td>${r.lamps}${isMain ? ' \u2190' : ''}</td><td>${r.score.toFixed(1)}</td><td>${r.benefit.toFixed(1)}</td><td>${delta}</td><td>${change}</td></tr>`;
+        html += `<tr${style}><td>${r.lamps}${isMain ? ' \u2190' : ''}</td><td>${r.score.toFixed(1)}</td><td>${r.benefit.toFixed(1)}</td><td>${delta}</td><td>${change}</td><td>${verdict}</td></tr>`;
       }
       html += '</tbody></table>';
+
+      // Summary recommendation
+      const mainIdx = rows.findIndex(r => r.lamps === n);
+      if (mainIdx >= 0) {
+        const gains = [];
+        for (let i = 1; i < rows.length; i++) {
+          gains.push({ from: rows[i-1].lamps, to: rows[i].lamps, delta: rows[i].score - rows[i-1].score, pct: rows[i-1].score ? (rows[i].score - rows[i-1].score) / Math.abs(rows[i-1].score) * 100 : 0 });
+        }
+        // Find the point of diminishing returns
+        const bestGain = gains.reduce((a, b) => b.pct > a.pct ? b : a, gains[0]);
+        const worstGain = gains.reduce((a, b) => b.pct < a.pct ? b : a, gains[0]);
+
+        html += '<div style="font-family:var(--font-serif);font-size:0.8rem;color:var(--ink-muted);margin-top:0.75rem;line-height:1.6;">';
+        if (gains.every(g => g.delta <= 0)) {
+          html += `Fewer lamps perform as well or better — consider reducing to ${rows[0].lamps} lamps.`;
+        } else if (gains.length >= 2 && gains[gains.length - 1].pct < 2 && gains[0].pct > 5) {
+          html += `Diminishing returns above ${gains.find(g => g.pct < 3)?.from || n} lamps. The biggest gain per lamp is going from ${bestGain.from} to ${bestGain.to} (+${bestGain.pct.toFixed(1)}%).`;
+        } else if (bestGain.pct > 10) {
+          html += `The biggest improvement is from ${bestGain.from} to ${bestGain.to} lamps (+${bestGain.pct.toFixed(1)}%). ${gains[gains.length-1].pct > 5 ? 'More lamps may still help — consider extending the range.' : ''}`;
+        } else {
+          html += `Coverage scales roughly linearly across this range — each lamp adds about ${(gains.reduce((s,g) => s + g.pct, 0) / gains.length).toFixed(1)}% improvement.`;
+        }
+        html += '</div>';
+      }
+
       marginalArea.innerHTML = html;
     }
   }
