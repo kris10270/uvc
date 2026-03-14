@@ -3398,10 +3398,17 @@ startBtn.addEventListener('click', () => {
           // Best-across-chains (for chart)
           const currentBest = perCountBest[lampCount]?.score || msg.bestScore;
           if (scoreHistories[lampCount]) {
-            if (scoreHistories[lampCount].length === 0) {
-              scoreHistories[lampCount].push({ step: 0, score: currentBest });
+            const hist = scoreHistories[lampCount];
+            if (hist.length === 0) {
+              hist.push({ step: 0, score: currentBest });
             }
-            scoreHistories[lampCount].push({ step: msg.step, score: currentBest });
+            // Only append if step is advancing (multiple chains report out of order)
+            if (msg.step >= hist[hist.length - 1].step) {
+              hist.push({ step: msg.step, score: currentBest });
+            } else {
+              // Out-of-order report: update score at the latest step if it improved
+              hist[hist.length - 1].score = Math.max(hist[hist.length - 1].score, currentBest);
+            }
           }
           // Per-chain current score (for convergence analysis)
           // Uses currentScore (the SA state's score) not bestScore (which plateaus)
