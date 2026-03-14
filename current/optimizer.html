@@ -3668,32 +3668,35 @@ function _finishOptimizationInner() {
     }
     if (chainScores.length < 2) return '';
 
-    const best = Math.max(...chainScores);
-    const worst = Math.min(...chainScores);
-    const spread = best - worst;
-    const mean = chainScores.reduce((a, b) => a + b, 0) / chainScores.length;
-    const spreadPct = mean > 0 ? (spread / mean * 100) : 0;
+    chainScores.sort((a, b) => b - a); // descending
+    const best = chainScores[0];
+    const median = chainScores[Math.floor(chainScores.length / 2)];
+    const second = chainScores.length > 1 ? chainScores[1] : best;
+    const gapToMedian = best - median;
+    const gapToSecond = best - second;
+    const gapPct = best > 0 ? (gapToMedian / best * 100) : 0;
 
     let verdict, color;
-    if (spreadPct < 1) {
-      verdict = 'All chains converged to similar results — more chains unlikely to help.';
+    if (gapPct < 0.5) {
+      verdict = 'Top chains agree — more chains unlikely to help.';
       color = 'var(--accent)';
-    } else if (spreadPct < 3) {
-      verdict = 'Low variance across chains — results are reliable.';
+    } else if (gapPct < 2) {
+      verdict = 'Top chains are close — result is reliable.';
       color = 'var(--accent)';
-    } else if (spreadPct < 8) {
-      verdict = 'Moderate variance — a few more chains might find a slightly better solution.';
+    } else if (gapPct < 5) {
+      verdict = 'Best chain is ahead of the pack — a few more chains might find something better.';
       color = 'var(--ink-muted)';
     } else {
-      verdict = 'High variance — more chains would likely improve the best result found.';
+      verdict = 'Best chain found a rare good solution — more chains recommended.';
       color = '#b06030';
     }
 
-    const scoresStr = chainScores.map(s => s.toFixed(1)).join(', ');
+    const topScores = chainScores.slice(0, Math.min(5, chainScores.length)).map(s => s.toFixed(1)).join(', ');
+    const suffix = chainScores.length > 5 ? `, ... (${chainScores.length} total)` : '';
     return `<div class="derived-row" style="margin-top:2px;">
-      <label data-tip="Compares final scores across parallel chains. If all chains found similar scores, the search space is well-explored. High variance means more chains could find better solutions.">Chain spread</label>:
+      <label data-tip="Compares the best chain's score to the median chain. If the top chains all found similar scores, the search space is well-explored. A large gap suggests the best chain got lucky and more chains could find even better.">Chains</label>:
       <span style="color:${color};font-weight:500;">${verdict}</span>
-      <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(scores: ${scoresStr} · spread: ${spread.toFixed(1)}, ${spreadPct.toFixed(1)}%)</span>
+      <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(top scores: ${topScores}${suffix} · best−median: ${gapToMedian.toFixed(1)}, ${gapPct.toFixed(1)}%)</span>
     </div>`;
   }
 
