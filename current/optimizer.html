@@ -3078,9 +3078,32 @@ async function runSA() {
   let bestSafetyPen = bestFinal.safetyPen;
   let bestFloorPen = bestFinal.floorPen;
 
+  // Early stopping: track best score at checkpoints
+  const earlyStopWindow = Math.max(10000, Math.floor(iterations * 0.25)); // last 25% or 10K min
+  const earlyStopThreshold = 1.0; // stop if best improved by less than this over the window
+  let bestAtWindowStart = bestScore;
+  let windowStartStep = 0;
+  let stoppedEarly = false;
+  let finalStep = iterations;
+
   for (let step = 0; step < iterations; step++) {
     // Check for stop signal
     if (step % 1000 === 0 && shouldStop) break;
+
+    // Early stopping check every 5000 steps, but not before 50% of runtime
+    if (step > iterations * 0.5 && step % 5000 === 0) {
+      if (step - windowStartStep >= earlyStopWindow) {
+        const improvement = bestScore - bestAtWindowStart;
+        if (improvement < earlyStopThreshold) {
+          stoppedEarly = true;
+          finalStep = step;
+          break;
+        }
+        // Slide the window forward
+        bestAtWindowStart = bestScore;
+        windowStartStep = step;
+      }
+    }
 
     temp *= cooling;
     const tf = Math.max(temp / initialTemp, 0.01);
@@ -3209,6 +3232,9 @@ async function runSA() {
     benefit: bestBenefit,
     safetyPen: bestSafetyPen,
     floorPen: bestFloorPen,
+    stoppedEarly,
+    finalStep,
+    iterations,
   });
 }
 
@@ -3587,7 +3613,13 @@ startBtn.addEventListener('click', () => {
       } else if (msg.type === 'done') {
         chainResults[wIdx] = msg;
         document.getElementById('pbar' + wIdx).style.width = '100%';
-        document.getElementById('ppct' + wIdx).textContent = '100%';
+        if (msg.stoppedEarly) {
+          const pct = Math.round(msg.finalStep / msg.iterations * 100) || 100;
+          document.getElementById('ppct' + wIdx).textContent = `${pct}% ✓`;
+          document.getElementById('ppct' + wIdx).style.color = 'var(--accent)';
+        } else {
+          document.getElementById('ppct' + wIdx).textContent = '100%';
+        }
 
         if (!perCountBest[lampCount] || msg.bestScore > perCountBest[lampCount].score) {
           perCountBest[lampCount] = {
@@ -3812,10 +3844,17 @@ function searchQualityHtml(history, totalIter, lampCount) {
     detail = `only ${nearBest}/${n} chains within 2% · last 25% contributed ${lastQPct.toFixed(0)}% of gain`;
   }
 
+  // Count early-stopped chains
+  let earlyStopCount = 0;
+  for (const wm of workerMap) {
+    if (wm.lampCount === lampCount && chainResults[wm.workerIdx]?.stoppedEarly) earlyStopCount++;
+  }
+  const earlyStopNote = earlyStopCount > 0 ? ` · ${earlyStopCount}/${n} stopped early` : '';
+
   return `<div class="derived-row" style="margin-top:4px;">
-    <label data-tip="Combines two signals: (1) whether the best score is still improving, and (2) whether multiple chains independently found similar scores (within 2%). Both must agree for 'converged.' Scattered chains with a flat curve usually means the cooling schedule froze the search early — try more iterations.">Search quality</label>:
+    <label data-tip="Combines two signals: (1) whether the best score is still improving, and (2) whether multiple chains independently found similar scores (within 2%). Chains that stopped early converged before reaching the iteration limit.">Search quality</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(${detail} · top: ${topScores}${suffix})</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(${detail}${earlyStopNote} · top: ${topScores}${suffix})</span>
   </div>`;
 }
 
