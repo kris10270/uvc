@@ -3191,7 +3191,8 @@ let elapsedTimer = null;
 let chainResults = [];
 let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
-let scoreHistories = {}; // {lampCount: [{step, score}]} — per-count convergence tracking
+let scoreHistories = {}; // {lampCount: [{step, score}]} — best-across-chains, for chart
+let chainScoreHistories = {}; // {lampCount: {chainIdx: [{step, score}]}} — per-chain, for convergence
 let lastIterations = 500000; // iterations used in the last run
 let viewingCount = null; // which lamp count we're viewing (for marginal toggle)
 let activeLampCounts = []; // lamp counts in this run
@@ -3302,7 +3303,11 @@ startBtn.addEventListener('click', () => {
   chainResults = new Array(totalWorkers).fill(null);
   chainProgress = new Array(totalWorkers).fill(0);
   scoreHistories = {};
-  for (const count of lampCounts) scoreHistories[count] = [];
+  chainScoreHistories = {};
+  for (const count of lampCounts) {
+    scoreHistories[count] = [];
+    chainScoreHistories[count] = {};
+  }
   chartYMin = Infinity; chartYMax = -Infinity;
   lastIterations = iterations;
 
@@ -3387,15 +3392,22 @@ startBtn.addEventListener('click', () => {
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
         }
-        // Record score history for all counts
+        // Record score histories
         {
+          // Best-across-chains (for chart)
           const currentBest = perCountBest[lampCount]?.score || msg.bestScore;
           if (scoreHistories[lampCount]) {
-            // Insert a step=0 entry on first report so chart line starts at x=0
             if (scoreHistories[lampCount].length === 0) {
               scoreHistories[lampCount].push({ step: 0, score: currentBest });
             }
             scoreHistories[lampCount].push({ step: msg.step, score: currentBest });
+          }
+          // Per-chain (for convergence analysis)
+          if (chainScoreHistories[lampCount]) {
+            if (!chainScoreHistories[lampCount][chainIdx]) {
+              chainScoreHistories[lampCount][chainIdx] = [];
+            }
+            chainScoreHistories[lampCount][chainIdx].push({ step: msg.step, score: msg.bestScore });
           }
           if (lampCount === viewingCount) drawScoreChart();
         }
@@ -3612,65 +3624,70 @@ document.getElementById('stopBtn').addEventListener('click', () => {
 // ════════════════════════════════════════════════════════════════════
 
 function convergenceHtml(history, totalIter, lampCount) {
-  if (history.length < 6) return '';
+  // Use per-chain score trajectories to measure whether individual chains
+  // were still improving when they stopped. This avoids the best-so-far
+  // flattening problem entirely.
+  const chains = chainScoreHistories[lampCount] || {};
+  const chainKeys = Object.keys(chains).filter(k => chains[k].length >= 4);
 
-  // The score history tracks best-across-chains, which flattens when one chain
-  // dominates early. To assess convergence properly, we combine two signals:
-  //
-  // 1. Score curve shape: what fraction of gain happened in the last 25%?
-  // 2. Chain agreement: are chains still scattered? (from chainResults)
-  //
-  // If the curve is flat BUT chains are scattered, it's undercooked (not converged).
-  // If the curve is flat AND chains agree, it's truly converged.
-
-  const q3Start = Math.floor(history.length * 0.75);
-  const totalGain = history[history.length - 1].score - history[0].score;
-  const finalScore = history[history.length - 1].score;
-  if (totalGain <= 0) return '<div class="derived-row" style="color:var(--ink-light);">No score improvement during run.</div>';
-
-  const lastQGain = history[history.length - 1].score - history[q3Start].score;
-  const lastQFrac = lastQGain / totalGain;
-
-  // Check chain spread — are chains still scattered?
-  const chainScores = [];
-  for (const wm of workerMap) {
-    if (wm.lampCount === lampCount && chainResults[wm.workerIdx]) {
-      chainScores.push(chainResults[wm.workerIdx].bestScore);
-    }
+  if (chainKeys.length === 0) {
+    if (history.length < 6) return '';
+    // Fallback to best-across-chains if per-chain data unavailable
+    const q3 = Math.floor(history.length * 0.75);
+    const lastQGain = history[history.length - 1].score - history[q3].score;
+    const totalGain = history[history.length - 1].score - history[0].score;
+    if (totalGain <= 0) return '';
+    const frac = lastQGain / totalGain;
+    const pct = (frac * 100).toFixed(0);
+    const verdict = frac > 0.15 ? 'Still improving' : frac > 0.05 ? 'Slowing down' : 'Converged';
+    return `<div class="derived-row" style="margin-top:4px;"><label>Convergence</label>: ${verdict} (last 25%: ${pct}% of gain)</div>`;
   }
-  let chainsScattered = false;
-  if (chainScores.length >= 2) {
-    chainScores.sort((a, b) => b - a);
-    const best = chainScores[0];
-    const threshold = best * 0.02;
-    const nearBest = chainScores.filter(s => best - s <= threshold).length;
-    chainsScattered = nearBest < 3 && chainScores.length >= 3;
+
+  // For each chain: compare improvement rate in last 25% vs first 25%
+  const rateRatios = [];
+  for (const k of chainKeys) {
+    const h = chains[k];
+    const q1 = Math.floor(h.length * 0.25);
+    const q3 = Math.floor(h.length * 0.75);
+
+    const firstQGain = h[q1].score - h[0].score;
+    const firstQSteps = h[q1].step - h[0].step || 1;
+    const lastQGain = h[h.length - 1].score - h[q3].score;
+    const lastQSteps = h[h.length - 1].step - h[q3].step || 1;
+
+    const firstRate = firstQGain / firstQSteps;
+    const lastRate = lastQGain / lastQSteps;
+
+    // rateRatio: 0 = fully stopped improving, 1 = still improving at initial pace
+    const ratio = firstRate > 0 ? Math.max(0, lastRate / firstRate) : 0;
+    rateRatios.push(ratio);
   }
+
+  // Use the median rate ratio across chains (robust to outliers)
+  rateRatios.sort((a, b) => a - b);
+  const medianRatio = rateRatios[Math.floor(rateRatios.length / 2)];
+  const avgRatio = rateRatios.reduce((a, b) => a + b, 0) / rateRatios.length;
+  const rateDecay = ((1 - medianRatio) * 100).toFixed(0);
 
   let verdict, color;
-  if (chainsScattered && lastQFrac < 0.05) {
-    // Curve is flat but chains disagree — undercooked, not converged
-    verdict = 'Chains are scattered — more iterations needed (curve is flat because one chain dominates).';
-    color = '#b06030';
-  } else if (lastQFrac > 0.2) {
-    verdict = 'Still improving — more iterations recommended.';
-    color = '#b06030';
-  } else if (lastQFrac > 0.08) {
-    verdict = 'Slowing down — more iterations would help somewhat.';
-    color = 'var(--ink-muted)';
-  } else if (lastQFrac > 0.02) {
-    verdict = 'Well converged — diminishing returns from more iterations.';
-    color = 'var(--accent)';
-  } else {
+  if (medianRatio < 0.02) {
     verdict = 'Fully converged — more iterations unlikely to help.';
     color = 'var(--accent)';
+  } else if (medianRatio < 0.1) {
+    verdict = 'Well converged — diminishing returns from more iterations.';
+    color = 'var(--accent)';
+  } else if (medianRatio < 0.3) {
+    verdict = 'Slowing down — more iterations would help somewhat.';
+    color = 'var(--ink-muted)';
+  } else {
+    verdict = 'Still improving — more iterations recommended.';
+    color = '#b06030';
   }
 
-  const lastQPct = (lastQFrac * 100).toFixed(0);
   return `<div class="derived-row" style="margin-top:4px;">
-    <label data-tip="Combines the score improvement curve with chain agreement. A flat curve with scattered chains means iterations are too low (one chain got lucky early). A flat curve with chains agreeing means true convergence.">Convergence</label>:
+    <label data-tip="Compares each chain's improvement rate (score gain per step) in the last 25% of iterations vs the first 25%, then takes the median across chains. A high decay means chains have individually stopped finding better solutions.">Convergence</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(last 25%: ${lastQPct}% of gain${chainsScattered ? ', chains scattered' : ''})</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(median per-chain improvement rate decayed ${rateDecay}% · ${chainKeys.length} chains)</span>
   </div>`;
 }
 
