@@ -3772,7 +3772,7 @@ function searchQualityHtml(history, totalIter, lampCount) {
     const best = chainScores[0];
     const threshold = Math.abs(best) * 0.02;
     nearBest = chainScores.filter(s => best - s <= threshold).length;
-    chainsAgree = nearBest >= 3 || (nearBest >= 2 && n <= 4);
+    chainsAgree = nearBest >= 3 || (nearBest >= 2 && n === 2);
   }
 
   const topScores = chainScores.slice(0, Math.min(5, n)).map(s => s.toFixed(1)).join(', ');
