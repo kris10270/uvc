@@ -524,6 +524,31 @@ label[data-tip]:hover::after {
 .progress-score.best-chain {
   color: var(--ink);
 }
+.count-toggle {
+  display: flex;
+  gap: 4px;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+}
+.count-toggle-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink-light);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.count-toggle-btn:hover { border-color: var(--ink-light); }
+.count-toggle-btn.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.count-toggle-btn.primary { font-weight: 700; }
 .progress-stats {
   display: flex;
   gap: 2rem;
@@ -957,7 +982,8 @@ label[data-tip]:hover::after {
           <div class="stat-value" id="elapsed">0:00</div>
         </div>
       </div>
-      <div class="canvas-container" style="margin-top:1rem;">
+      <div id="countToggle" style="display:none;margin-top:0.75rem;"></div>
+      <div class="canvas-container" style="margin-top:0.5rem;">
         <canvas id="heatmapCanvas"></canvas>
       </div>
       <div class="btn-row" style="margin-top:0.75rem; justify-content:center;">
@@ -967,6 +993,7 @@ label[data-tip]:hover::after {
 
     <!-- Results -->
     <div class="results-area" id="resultsArea">
+      <div id="resultCountToggle" style="display:none;margin-bottom:0.75rem;"></div>
       <h3>Results</h3>
       <div class="derived-values" id="scoreBreakdown"></div>
       <div style="margin-top:1rem;">
@@ -3011,6 +3038,9 @@ let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
 let scoreHistory = []; // [{step, score}] — convergence tracking for primary lamp count
 let lastIterations = 500000; // iterations used in the last run
+let viewingCount = null; // which lamp count we're viewing (for marginal toggle)
+let activeLampCounts = []; // lamp counts in this run
+let perCountBest = {}; // {count: {score, lamps, benefit, safetyPen, floorPen}}
 
 // ════════════════════════════════════════════════════════════════════
 // Start optimizer
@@ -3138,6 +3168,13 @@ startBtn.addEventListener('click', () => {
     `;
   }
 
+  // Build count toggle for heatmap (during runtime)
+  if (doMarginal) {
+    buildCountToggle('countToggle', lampCounts, numLamps, switchToCount);
+  } else {
+    document.getElementById('countToggle').style.display = 'none';
+  }
+
   // Elapsed timer
   elapsedTimer = setInterval(() => {
     const secs = Math.floor((Date.now() - optimizerStartTime) / 1000);
@@ -3155,9 +3192,11 @@ startBtn.addEventListener('click', () => {
   workers = [];
   let doneCount = 0;
 
-  // Per lamp-count best tracking
-  const perCountBest = {};
+  // Reset per lamp-count tracking
+  perCountBest = {};
   for (const count of lampCounts) perCountBest[count] = null;
+  activeLampCounts = [...lampCounts];
+  viewingCount = numLamps;
 
   for (const wm of workerMap) {
     const { lampCount, chainIdx, workerIdx: wIdx } = wm;
@@ -3295,6 +3334,77 @@ startBtn.addEventListener('click', () => {
 // Stop button
 // ════════════════════════════════════════════════════════════════════
 
+function buildCountToggle(containerId, lampCounts, primaryN, onChange) {
+  const el = document.getElementById(containerId);
+  if (!el || lampCounts.length <= 1) { if (el) el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+  el.className = 'count-toggle';
+  el.innerHTML = '<span style="font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-light);align-self:center;margin-right:4px;">View:</span>';
+  for (const count of lampCounts) {
+    const btn = document.createElement('button');
+    btn.className = 'count-toggle-btn' + (count === primaryN ? ' primary' : '') + (count === viewingCount ? ' active' : '');
+    btn.textContent = count + 'L';
+    btn.addEventListener('click', () => {
+      viewingCount = count;
+      el.querySelectorAll('.count-toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // Sync the other toggle too
+      const otherId = containerId === 'countToggle' ? 'resultCountToggle' : 'countToggle';
+      const otherEl = document.getElementById(otherId);
+      if (otherEl) {
+        otherEl.querySelectorAll('.count-toggle-btn').forEach(b => {
+          b.classList.toggle('active', b.textContent === count + 'L');
+        });
+      }
+      onChange(count);
+    });
+    el.appendChild(btn);
+  }
+}
+
+function switchToCount(count) {
+  const result = perCountBest[count];
+  if (!result) return;
+  // Update heatmap
+  bestResult = result;
+  drawHeatmap();
+  // Update results display if visible
+  const resultsArea = document.getElementById('resultsArea');
+  if (resultsArea.style.display !== 'none') {
+    updateResultsDisplay(result, count);
+  }
+}
+
+function updateResultsDisplay(result, count) {
+  const hours = parseInt(tlvHoursInput.value);
+  const { threshold } = computeTLV(hours);
+  document.getElementById('scoreBreakdown').innerHTML = `
+    <div class="derived-row"><label data-tip="The overall optimization score. Higher is better. Score = Benefit - Safety Penalty - Floor Penalty.">Final Score</label>: <strong>${result.score.toFixed(2)}</strong> <span style="font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-light);">(${count} lamps)</span></div>
+    <div class="derived-row">
+      <label data-tip="Sum of weighted irradiance at each evaluation probe, capped at 4.0 µW/cm² per probe. Higher means more UV coverage where it matters.">Benefit</label>: <strong>${result.benefit.toFixed(2)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Penalizes configurations where FOV-weighted eye irradiance exceeds the safety threshold at any point. Multiplied by 300× to strongly discourage unsafe placements. Zero means fully compliant.">Safety Penalty</label>: <strong>${result.safetyPen.toFixed(4)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${result.floorPen.toFixed(2)}</strong>
+    </div>
+    <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(result.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
+  `;
+  // Lamp table
+  const tbody = document.querySelector('#lampTable tbody');
+  tbody.innerHTML = '';
+  result.lamps.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${l.x.toFixed(2)}</td><td>${l.y.toFixed(2)}</td><td>${l.aim.toFixed(0)}</td><td>${l.tilt.toFixed(0)}</td>`;
+    tbody.appendChild(tr);
+  });
+  // Update explorer link
+  const explorerLink = document.getElementById('explorerLink');
+  const lampsParam = result.lamps.map(l =>
+    `${l.x.toFixed(2)},${l.y.toFixed(2)},${l.aim.toFixed(0)},${l.tilt.toFixed(0)}`
+  ).join(';');
+  explorerLink.href = `uvc-explorer.html?${new URLSearchParams({
+    lamps: lampsParam, w: getRoomW(), d: getRoomD(), ch: getCeilH(), mh: getMountH(), score: result.score.toFixed(1)
+  }).toString()}`;
+}
+
 document.getElementById('stopBtn').addEventListener('click', () => {
   if (!optimizerRunning) return;
   console.log('Stopping optimizer...');
@@ -3382,43 +3492,20 @@ function _finishOptimizationInner() {
   const resultsArea = document.getElementById('resultsArea');
   resultsArea.style.display = 'block';
 
-  // Score breakdown
-  const hours = parseInt(tlvHoursInput.value);
-  const { threshold } = computeTLV(hours);
-  document.getElementById('scoreBreakdown').innerHTML = `
-    <div class="derived-row"><label data-tip="The overall optimization score. Higher is better. Score = Benefit - Safety Penalty - Floor Penalty.">Final Score</label>: <strong>${bestResult.score.toFixed(2)}</strong></div>
-    <div class="derived-row">
-      <label data-tip="Sum of weighted irradiance at each evaluation probe, capped at 4.0 µW/cm² per probe. Higher means more UV coverage where it matters.">Benefit</label>: <strong>${bestResult.benefit.toFixed(2)}</strong> &nbsp;|&nbsp;
-      <label data-tip="Penalizes configurations where FOV-weighted eye irradiance exceeds the safety threshold at any point. Multiplied by 300× to strongly discourage unsafe placements. Zero means fully compliant.">Safety Penalty</label>: <strong>${bestResult.safetyPen.toFixed(4)}</strong> &nbsp;|&nbsp;
-      <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${bestResult.floorPen.toFixed(2)}</strong>
-    </div>
-    <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(bestResult.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
-    ${convergenceHtml(scoreHistory, lastIterations)}
-  `;
+  // Build result count toggle for marginal
+  if (activeLampCounts.length > 1) {
+    const primaryN = activeLampCounts.find(n => perCountBest[n]) || activeLampCounts[Math.floor(activeLampCounts.length / 2)];
+    buildCountToggle('resultCountToggle', activeLampCounts, primaryN, switchToCount);
+  } else {
+    document.getElementById('resultCountToggle').style.display = 'none';
+  }
 
-  // Lamp table
-  const tbody = document.querySelector('#lampTable tbody');
-  tbody.innerHTML = '';
-  bestResult.lamps.forEach((l, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${l.x.toFixed(2)}</td><td>${l.y.toFixed(2)}</td><td>${l.aim.toFixed(0)}</td><td>${l.tilt.toFixed(0)}</td>`;
-    tbody.appendChild(tr);
-  });
+  // Display results for the currently viewed count
+  updateResultsDisplay(bestResult, viewingCount || bestResult.lamps.length);
 
-  // Update Explorer link with lamp config
-  const explorerLink = document.getElementById('explorerLink');
-  const lampsParam = bestResult.lamps.map(l =>
-    `${l.x.toFixed(2)},${l.y.toFixed(2)},${l.aim.toFixed(0)},${l.tilt.toFixed(0)}`
-  ).join(';');
-  const explorerParams = new URLSearchParams({
-    lamps: lampsParam,
-    w: getRoomW(),
-    d: getRoomD(),
-    ch: getCeilH(),
-    mh: getMountH(),
-    score: bestResult.score.toFixed(1)
-  });
-  explorerLink.href = `uvc-explorer.html?${explorerParams.toString()}`;
+  // Add convergence to score breakdown
+  const breakdownEl = document.getElementById('scoreBreakdown');
+  breakdownEl.innerHTML += convergenceHtml(scoreHistory, lastIterations);
 
   // Final heatmap
   drawHeatmap();
@@ -3645,11 +3732,12 @@ function runRankAnalysis() {
 // ════════════════════════════════════════════════════════════════════
 
 document.getElementById('copyConfig').addEventListener('click', () => {
-  if (!bestResult || !bestResult.lamps) {
+  const activeResult = (viewingCount && perCountBest[viewingCount]) || bestResult;
+  if (!activeResult || !activeResult.lamps) {
     navigator.clipboard.writeText('[]');
     return;
   }
-  const configOut = bestResult.lamps.map(l => [
+  const configOut = activeResult.lamps.map(l => [
     parseFloat(l.x.toFixed(2)),
     parseFloat(l.y.toFixed(2)),
     parseFloat(l.aim.toFixed(1)),
@@ -3820,14 +3908,15 @@ function generateGuvFile(lamps) {
 }
 
 document.getElementById('downloadGuv').addEventListener('click', () => {
-  if (!bestResult || !bestResult.lamps) return;
-  const guv = generateGuvFile(bestResult.lamps);
+  const activeResult = (viewingCount && perCountBest[viewingCount]) || bestResult;
+  if (!activeResult || !activeResult.lamps) return;
+  const guv = generateGuvFile(activeResult.lamps);
   const json = JSON.stringify(guv, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${bestResult.lamps.length}-lamps.guv`;
+  a.download = `${activeResult.lamps.length}-lamps.guv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
