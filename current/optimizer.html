@@ -857,9 +857,6 @@ label[data-tip]:hover::after {
       <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="Also runs the optimizer for nearby lamp counts. Shows how much each additional lamp improves coverage.">
         <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal analysis &plusmn;<input type="number" id="marginalRange" value="1" min="1" max="5" step="1" style="width:38px;font-family:var(--font-mono);font-size:0.75rem;padding:1px 4px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);"> lamps
       </label>
-      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="After optimization, evaluates every subset of lamps to determine which are most critical. Shows installation priority order — which lamps to install first for maximum impact.">
-        <input type="checkbox" id="rankCheck" style="accent-color:var(--ink);"> Rank lamps (installation priority)
-      </label>
     </div>
     <details style="margin-top:1rem;">
       <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;">Advanced</summary>
@@ -3887,7 +3884,7 @@ function _finishOptimizationInner() {
 // ════════════════════════════════════════════════════════════════════
 
 async function runPostAnalyses() {
-  const doRank = document.getElementById('rankCheck').checked;
+  const doRank = true;
 
   if (doRank && bestResult) {
     runRankAnalysis();
