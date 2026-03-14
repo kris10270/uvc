@@ -3099,8 +3099,8 @@ async function runSA() {
       updateBeamVec(li);
     }
 
-    // Progress report every 2500 steps
-    if ((step + 1) % 2500 === 0) {
+    // Progress report every 1250 steps
+    if ((step + 1) % 1250 === 0) {
       postMessage({
         type: 'progress',
         step: step + 1,
