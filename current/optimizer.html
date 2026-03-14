@@ -982,6 +982,9 @@ label[data-tip]:hover::after {
           <div class="stat-value" id="elapsed">0:00</div>
         </div>
       </div>
+      <div style="margin-top:0.75rem;">
+        <canvas id="scoreChart" height="120" style="width:100%;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);"></canvas>
+      </div>
       <div id="countToggle" style="display:none;margin-top:0.75rem;"></div>
       <div class="canvas-container" style="margin-top:0.5rem;">
         <canvas id="heatmapCanvas"></canvas>
@@ -1455,6 +1458,11 @@ function resizeCanvases() {
     c.style.width = totalW + 'px';
     c.style.height = totalH + 'px';
   }
+  // Score chart: full width, fixed height
+  const scoreChart = document.getElementById('scoreChart');
+  scoreChart.width = totalW;
+  scoreChart.height = 120;
+  scoreChart.style.width = totalW + 'px';
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2172,6 +2180,104 @@ function irrOneLampSafety(lx, ly, bx, by, bz, mountH, px, py, ph, barrs) {
 // ════════════════════════════════════════════════════════════════════
 
 let bestResult = null; // { lamps: [{x,y,aim,tilt}], score, benefit, safetyPen, floorPen }
+
+function drawScoreChart() {
+  const canvas = document.getElementById('scoreChart');
+  if (!canvas || scoreHistory.length < 2) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const pad = { top: 18, right: 12, bottom: 22, left: 50 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Data range
+  const scores = scoreHistory.map(h => h.score);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  const scoreRange = maxScore - minScore || 1;
+  const maxStep = scoreHistory[scoreHistory.length - 1].step;
+
+  // Y axis: pad 5% on each side
+  const yMin = minScore - scoreRange * 0.05;
+  const yMax = maxScore + scoreRange * 0.05;
+  const yRange = yMax - yMin;
+
+  // Grid lines
+  ctx.strokeStyle = '#e8e4db';
+  ctx.lineWidth = 0.5;
+  const nGridY = 4;
+  for (let i = 0; i <= nGridY; i++) {
+    const y = pad.top + plotH * (1 - i / nGridY);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke();
+  }
+
+  // Score line
+  ctx.strokeStyle = '#5a4a3a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < scoreHistory.length; i++) {
+    const x = pad.left + (scoreHistory[i].step / maxStep) * plotW;
+    const y = pad.top + plotH * (1 - (scoreHistory[i].score - yMin) / yRange);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill under curve
+  ctx.lineTo(pad.left + plotW, pad.top + plotH);
+  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(90,74,58,0.06)';
+  ctx.fill();
+
+  // Current score label
+  const lastScore = scores[scores.length - 1];
+  const lastX = pad.left + plotW;
+  const lastY = pad.top + plotH * (1 - (lastScore - yMin) / yRange);
+  ctx.fillStyle = '#5a4a3a';
+  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lastScore.toFixed(1), lastX - 4, Math.max(pad.top + 8, lastY));
+
+  // Axes
+  ctx.strokeStyle = '#d4cfc4';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + plotH);
+  ctx.lineTo(pad.left + plotW, pad.top + plotH);
+  ctx.stroke();
+
+  // Y axis labels
+  ctx.fillStyle = '#8a8a8a';
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= nGridY; i++) {
+    const val = yMin + yRange * i / nGridY;
+    const y = pad.top + plotH * (1 - i / nGridY);
+    ctx.fillText(val.toFixed(0), pad.left - 4, y);
+  }
+
+  // X axis labels
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const stepK = maxStep / 1000;
+  ctx.fillText('0', pad.left, pad.top + plotH + 4);
+  ctx.fillText(stepK.toFixed(0) + 'K', pad.left + plotW, pad.top + plotH + 4);
+  ctx.fillText(Math.round(stepK / 2) + 'K', pad.left + plotW / 2, pad.top + plotH + 4);
+
+  // Title
+  ctx.fillStyle = '#8a8a8a';
+  ctx.font = '600 9px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('BEST SCORE', pad.left, 4);
+}
 
 function drawHeatmap() {
   const canvas = document.getElementById('heatmapCanvas');
@@ -3234,6 +3340,7 @@ startBtn.addEventListener('click', () => {
         if (lampCount === numLamps) {
           const currentBest = perCountBest[lampCount]?.score || msg.bestScore;
           scoreHistory.push({ step: msg.step, score: currentBest });
+          drawScoreChart();
         }
 
         // Update per-count score display
