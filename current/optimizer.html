@@ -3078,30 +3078,31 @@ async function runSA() {
   let bestSafetyPen = bestFinal.safetyPen;
   let bestFloorPen = bestFinal.floorPen;
 
-  // Early stopping: track best score at checkpoints
-  const earlyStopWindow = Math.max(10000, Math.floor(iterations * 0.25)); // last 25% or 10K min
-  const earlyStopThreshold = 1.0; // stop if best improved by less than this over the window
-  let bestAtWindowStart = bestScore;
-  let windowStartStep = 0;
+  // Early stopping: if best score hasn't improved meaningfully since the
+  // halfway point, stop the chain. Checked every 5000 steps after 66% of runtime.
+  const earlyStopThreshold = 1.0;
+  let bestAtHalfway = null;
   let stoppedEarly = false;
   let finalStep = iterations;
+  const halfwayStep = Math.floor(iterations * 0.5);
+  const earliestStop = Math.floor(iterations * 0.66); // don't stop before 66%
 
   for (let step = 0; step < iterations; step++) {
     // Check for stop signal
     if (step % 1000 === 0 && shouldStop) break;
 
-    // Early stopping check every 5000 steps, but not before 50% of runtime
-    if (step > iterations * 0.5 && step % 5000 === 0) {
-      if (step - windowStartStep >= earlyStopWindow) {
-        const improvement = bestScore - bestAtWindowStart;
-        if (improvement < earlyStopThreshold) {
-          stoppedEarly = true;
-          finalStep = step;
-          break;
-        }
-        // Slide the window forward
-        bestAtWindowStart = bestScore;
-        windowStartStep = step;
+    // Record best at halfway
+    if (step === halfwayStep) {
+      bestAtHalfway = bestScore;
+    }
+
+    // Early stopping: check after 66% if best hasn't improved since halfway
+    if (bestAtHalfway !== null && step >= earliestStop && step % 5000 === 0) {
+      const improvement = bestScore - bestAtHalfway;
+      if (improvement < earlyStopThreshold) {
+        stoppedEarly = true;
+        finalStep = step;
+        break;
       }
     }
 
