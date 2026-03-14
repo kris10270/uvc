@@ -673,6 +673,19 @@ canvas#doseChart { background: #fff; }
 }
 .source-note a:hover { color: var(--ink); }
 
+/* Page header (above topbar) */
+.page-header {
+  padding: 0.5rem 20px;
+}
+.page-header .back-link {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.page-header .back-link:hover { color: var(--ink); }
+
 /* Footer */
 .footer {
   text-align: center;
@@ -696,6 +709,10 @@ canvas#doseChart { background: #fff; }
 </style>
 </head>
 <body>
+
+<div class="page-header">
+  <a href="../uvc-explorer.html" class="back-link">&larr; Home</a>
+</div>
 
 <!-- ══ Top bar ══ -->
 <div class="topbar">
@@ -859,7 +876,7 @@ canvas#doseChart { background: #fff; }
   </div>
 </div>
 
-<div class="footer">Far-UVC Coverage Explorer · Physics: OSLUV Aerolamp DevKit beam profile · Mount: 8.1 ft · Built by Claude Opus 4.6</div>
+<div class="footer">Far-UVC Coverage Explorer &middot; Physics: OSLUV Aerolamp DevKit beam profile &middot; Mount: 8.1 ft &middot; Built by Claude Opus 4.6 &middot; <a href="https://github.com/kris10270/uvc" style="color: var(--ink-light);">GitHub</a></div>
 
 <script>
 // ═══════════════════════════════════════════════════════
