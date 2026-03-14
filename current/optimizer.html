@@ -2213,8 +2213,8 @@ function drawScoreChart() {
   chartYMin = Math.min(chartYMin, dataMin);
   chartYMax = Math.max(chartYMax, dataMax);
   const scoreRange = chartYMax - chartYMin || 1;
-  const yMin = chartYMin - scoreRange * 0.05;
-  const yMax = chartYMax + scoreRange * 0.1; // more room at top for label
+  const yMin = chartYMin - scoreRange * 0.15; // enough room so first point isn't clipped
+  const yMax = chartYMax + scoreRange * 0.15;
   const yRange = yMax - yMin;
 
   // Grid lines
@@ -3181,6 +3181,7 @@ let lastIterations = 500000; // iterations used in the last run
 let viewingCount = null; // which lamp count we're viewing (for marginal toggle)
 let activeLampCounts = []; // lamp counts in this run
 let perCountBest = {}; // {count: {score, lamps, benefit, safetyPen, floorPen}}
+let workerMap = []; // [{lampCount, chainIdx, workerIdx}]
 
 // ════════════════════════════════════════════════════════════════════
 // Start optimizer
@@ -3256,7 +3257,7 @@ startBtn.addEventListener('click', () => {
   const barsEl = document.getElementById('progressBars');
   barsEl.innerHTML = '';
   // We'll use a flat worker index and map (lampCountIdx, chainIdx) -> workerIdx
-  const workerMap = []; // [{lampCount, chainIdx, workerIdx}]
+  workerMap = []; // [{lampCount, chainIdx, workerIdx}]
   let workerIdx = 0;
   for (const count of lampCounts) {
     if (lampCounts.length > 1) {
@@ -3540,6 +3541,7 @@ function switchToCount(count) {
     updateResultsDisplay(result, count);
     const breakdownEl = document.getElementById('scoreBreakdown');
     breakdownEl.innerHTML += convergenceHtml(scoreHistories[count] || [], lastIterations);
+    breakdownEl.innerHTML += chainAnalysisHtml(count);
   }
 }
 
@@ -3656,6 +3658,45 @@ function _finishOptimizationInner() {
     </div>`;
   }
 
+  function chainAnalysisHtml(count) {
+    // Find chain scores for this lamp count
+    const chainScores = [];
+    for (const wm of workerMap) {
+      if (wm.lampCount === count && chainResults[wm.workerIdx]) {
+        chainScores.push(chainResults[wm.workerIdx].bestScore);
+      }
+    }
+    if (chainScores.length < 2) return '';
+
+    const best = Math.max(...chainScores);
+    const worst = Math.min(...chainScores);
+    const spread = best - worst;
+    const mean = chainScores.reduce((a, b) => a + b, 0) / chainScores.length;
+    const spreadPct = mean > 0 ? (spread / mean * 100) : 0;
+
+    let verdict, color;
+    if (spreadPct < 1) {
+      verdict = 'All chains converged to similar results — more chains unlikely to help.';
+      color = 'var(--accent)';
+    } else if (spreadPct < 3) {
+      verdict = 'Low variance across chains — results are reliable.';
+      color = 'var(--accent)';
+    } else if (spreadPct < 8) {
+      verdict = 'Moderate variance — a few more chains might find a slightly better solution.';
+      color = 'var(--ink-muted)';
+    } else {
+      verdict = 'High variance — more chains would likely improve the best result found.';
+      color = '#b06030';
+    }
+
+    const scoresStr = chainScores.map(s => s.toFixed(1)).join(', ');
+    return `<div class="derived-row" style="margin-top:2px;">
+      <label data-tip="Compares final scores across parallel chains. If all chains found similar scores, the search space is well-explored. High variance means more chains could find better solutions.">Chain spread</label>:
+      <span style="color:${color};font-weight:500;">${verdict}</span>
+      <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(scores: ${scoresStr} · spread: ${spread.toFixed(1)}, ${spreadPct.toFixed(1)}%)</span>
+    </div>`;
+  }
+
   // Show results
   const resultsArea = document.getElementById('resultsArea');
   resultsArea.style.display = 'block';
@@ -3674,6 +3715,7 @@ function _finishOptimizationInner() {
   // Add convergence to score breakdown
   const breakdownEl = document.getElementById('scoreBreakdown');
   breakdownEl.innerHTML += convergenceHtml(scoreHistories[viewingCount] || [], lastIterations);
+  breakdownEl.innerHTML += chainAnalysisHtml(viewingCount);
 
   // Final heatmap
   drawHeatmap();
