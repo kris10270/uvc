@@ -827,33 +827,77 @@ label[data-tip]:hover::after {
         <label for="chains" data-tip="Independent optimization runs in parallel, each starting from a random configuration. The best result across all chains is kept. More chains reduce the chance of getting stuck in a local optimum.">Parallel Chains</label>
         <input type="number" id="chains" min="1" max="64" step="1">
       </div>
-      <div class="control-group">
-        <label for="evalSpacing" data-tip="Spacing of background evaluation probes in feet. Smaller values create more probes and increase accuracy but slow down optimization. Priority areas always use 1ft spacing.">Eval Grid Spacing (ft)</label>
-        <input type="number" id="evalSpacing" value="2.0" min="0.5" max="5.0" step="0.5">
-      </div>
-      <div class="control-group">
-        <label for="safetySpacing" data-tip="Spacing of safety evaluation probes in feet. The ACGIH eye dose model creates sharp peaks — 0.5ft is recommended. Smaller values improve peak detection but slow down optimization.">Safety Grid Spacing (ft)</label>
-        <input type="number" id="safetySpacing" value="0.5" min="0.25" max="2.0" step="0.25">
-      </div>
-      <div class="control-group">
-        <label for="seedInput" data-tip="Set a specific seed for reproducible results. Leave empty for a random seed based on the current time.">Random Seed</label>
-        <input type="number" id="seedInput" placeholder="auto">
-      </div>
     </div>
     <div style="display:flex; gap:1.5rem; margin-top:1rem; flex-wrap:wrap;">
-      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="Runs the optimizer for one fewer and one more lamp in addition to the selected count. Shows how much each additional lamp improves coverage.">
-        <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal analysis (also run n-1 and n+1 lamps)
+      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="Also runs the optimizer for nearby lamp counts. Shows how much each additional lamp improves coverage.">
+        <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal analysis &plusmn;<input type="number" id="marginalRange" value="1" min="1" max="5" step="1" style="width:38px;font-family:var(--font-mono);font-size:0.75rem;padding:1px 4px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);"> lamps
       </label>
       <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="After optimization, evaluates every subset of lamps to determine which are most critical. Shows installation priority order — which lamps to install first for maximum impact.">
         <input type="checkbox" id="rankCheck" style="accent-color:var(--ink);"> Rank lamps (installation priority)
       </label>
     </div>
     <details style="margin-top:1rem;">
-      <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;">Score existing configuration</summary>
-      <div style="margin-top:0.5rem;">
-        <textarea id="scoreInput" placeholder="Paste [[x,y,aim,tilt], ...]" style="width:100%;height:60px;font-family:var(--font-mono);font-size:0.75rem;padding:8px;border:1px solid var(--rule);border-radius:4px;background:#fff;color:var(--ink);resize:vertical;outline:none;"></textarea>
-        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
-          <button class="btn" id="scoreBtn">Score</button>
+      <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;">Advanced</summary>
+      <div class="controls-grid" style="margin-top:0.75rem;">
+        <div class="control-group">
+          <label for="evalSpacing" data-tip="Spacing of background evaluation probes in feet. Smaller values create more probes and increase accuracy but slow down optimization. Priority areas always use 1ft spacing.">Eval Grid Spacing (ft)</label>
+          <input type="number" id="evalSpacing" value="2.0" min="0.5" max="5.0" step="0.5">
+        </div>
+        <div class="control-group">
+          <label for="safetySpacing" data-tip="Spacing of safety evaluation probes in feet. The ACGIH eye dose model creates sharp peaks — 0.5ft is recommended. Smaller values improve peak detection but slow down optimization.">Safety Grid Spacing (ft)</label>
+          <input type="number" id="safetySpacing" value="0.5" min="0.25" max="2.0" step="0.25">
+        </div>
+        <div class="control-group">
+          <label for="seedInput" data-tip="Set a specific seed for reproducible results. Leave empty for a random seed based on the current time.">Random Seed</label>
+          <input type="number" id="seedInput" placeholder="auto">
+        </div>
+        <div class="control-group">
+          <label for="deviceSelect" data-tip="Select your device to see an estimated run time. Estimates assume WebGPU is available; CPU fallback will be slower.">Device (for time estimate)</label>
+          <select id="deviceSelect">
+            <optgroup label="M1">
+              <option value="m1">M1</option>
+              <option value="m1pro">M1 Pro</option>
+              <option value="m1max">M1 Max</option>
+            </optgroup>
+            <optgroup label="M2">
+              <option value="m2">M2</option>
+              <option value="m2pro">M2 Pro</option>
+              <option value="m2max">M2 Max</option>
+            </optgroup>
+            <optgroup label="M3">
+              <option value="m3">M3</option>
+              <option value="m3pro">M3 Pro</option>
+              <option value="m3max">M3 Max</option>
+            </optgroup>
+            <optgroup label="M4">
+              <option value="m4" selected>M4</option>
+              <option value="m4pro">M4 Pro</option>
+              <option value="m4max">M4 Max</option>
+            </optgroup>
+            <optgroup label="M5">
+              <option value="m5">M5</option>
+              <option value="m5pro">M5 Pro</option>
+              <option value="m5max">M5 Max</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="igpu">Integrated GPU (Intel/AMD)</option>
+              <option value="dgpu">Discrete GPU (RTX/RX)</option>
+              <option value="cpu">CPU only (no WebGPU)</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+      <div id="timeEstimate" style="margin-top:0.75rem;font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);"></div>
+      <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--rule-light);">
+        <div style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);margin-bottom:0.5rem;">Score existing configuration</div>
+        <div style="display:flex;gap:0.5rem;align-items:flex-start;flex-wrap:wrap;">
+          <textarea id="scoreInput" placeholder="Paste [[x,y,aim,tilt], ...]" style="flex:1;min-width:200px;height:50px;font-family:var(--font-mono);font-size:0.7rem;padding:6px 8px;border:1px solid var(--rule);border-radius:4px;background:#fff;color:var(--ink);resize:vertical;outline:none;"></textarea>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="btn" id="scoreBtn">Score</button>
+            <label class="btn" style="cursor:pointer;text-align:center;">Upload<input type="file" id="scoreFileInput" accept=".json,.guv" style="display:none;"></label>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;">
           <span id="scoreResult" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);"></span>
         </div>
         <div id="scoreBreakdownManual" style="margin-top:0.5rem;"></div>
@@ -898,6 +942,7 @@ label[data-tip]:hover::after {
       <div style="flex:1;"></div>
       <button class="btn btn-primary" id="startBtn">&#9654; Start Optimization</button>
     </div>
+    <div id="mountingNote" style="font-family:var(--font-sans);font-size:0.6rem;color:var(--ink-light);display:none;margin-top:0.5rem;"></div>
 
     <!-- Progress -->
     <div class="progress-area" id="progressArea">
@@ -945,8 +990,10 @@ label[data-tip]:hover::after {
 
 </div>
 
+<div id="gpuBanner" style="display:none;"></div>
+
 <div class="footer">
-  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing
+  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing &middot; Built by Claude Opus 4.6
 </div>
 
 <script>
@@ -963,6 +1010,7 @@ const CATEGORIES = {
 
 let barriers = [];  // {x1, y1, x2, y2}
 let areas = [];     // {x, y, w, h, category, seating, weight}
+let bgWeight = 0.2; // background grid probe weight (editable from summary table)
 const SEAT_OFFSET = 1.5; // feet — how far outside the rectangle edge seated probes are placed
 
 // Barrier drawing state
@@ -1078,7 +1126,7 @@ function generatePoints() {
   const halfStep = evalSpacing / 2;
   for (let x = halfStep; x < roomW; x += evalSpacing) {
     for (let y = halfStep; y < roomD; y += evalSpacing) {
-      points.push({ x, y, h: 5.0, w: 0.2, _src: 'bg' });
+      points.push({ x, y, h: 5.0, w: bgWeight, _src: 'bg' });
     }
   }
   // Priority areas: 1ft spacing, area's height and weight
@@ -1392,11 +1440,11 @@ function updateAreaReadout() {
 
 function updateWeightSummary() {
   const points = generatePoints();
-  let bgCount = 0, bgWeight = 0;
-  const catData = {}; // {category: {count, weight}}
+  let bgCount = 0, bgTotalWeight = 0;
+  const catData = {}; // {category: {count, weight, perProbe}}
   for (const p of points) {
     if (p._src === 'bg') {
-      bgCount++; bgWeight += p.w;
+      bgCount++; bgTotalWeight += p.w;
     } else {
       const cat = p._src || 'other';
       if (!catData[cat]) catData[cat] = { count: 0, weight: 0 };
@@ -1404,35 +1452,88 @@ function updateWeightSummary() {
       catData[cat].weight += p.w;
     }
   }
-  const totalWeight = bgWeight + Object.values(catData).reduce((a, d) => a + d.weight, 0);
+  const totalWeight = bgTotalWeight + Object.values(catData).reduce((a, d) => a + d.weight, 0);
   const totalCount = bgCount + Object.values(catData).reduce((a, d) => a + d.count, 0);
   if (totalWeight === 0) {
     document.getElementById('weightSummary').innerHTML = '';
     return;
   }
   const pct = (v) => (v / totalWeight * 100).toFixed(0);
+  const thS = 'style="text-align:left;padding:2px 8px 2px 0;font-weight:600;color:var(--ink-light);letter-spacing:0.04em;text-transform:uppercase;"';
+  const thR = 'style="text-align:right;padding:2px 8px 2px 0;font-weight:600;color:var(--ink-light);"';
+  const tdL = 'style="padding:3px 8px 3px 0;"';
+  const tdR = 'style="text-align:right;padding:3px 8px 3px 0;"';
+  const inputS = 'style="width:48px;font-family:var(--font-mono);font-size:0.65rem;padding:1px 4px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);"';
 
-  const tdR = 'style="text-align:right;padding:2px 10px 2px 0;"';
-  const tdRlast = 'style="text-align:right;padding:2px 0;"';
-  const tdL = 'style="padding:2px 10px 2px 0;"';
-  let rows = `<tr><td ${tdL} style="color:var(--ink-light);">Background</td><td ${tdR}>${bgCount}</td><td ${tdR}>${fmt(bgWeight)}</td><td ${tdRlast}>${pct(bgWeight)}%</td></tr>`;
+  // Per-probe weight for each category (what you'd change to reweight all areas of that type)
+  const catPerProbe = {};
+  for (const [cat, d] of Object.entries(catData)) {
+    // Find the weight used per probe — take from first area of this category
+    const firstArea = areas.find(a => a.category === cat);
+    catPerProbe[cat] = firstArea ? (firstArea.weight != null ? firstArea.weight : CATEGORIES[cat].weight) : CATEGORIES[cat].weight;
+  }
+
+  let rows = `<tr>
+    <td ${tdL} style="color:var(--ink-light);">Background</td>
+    <td ${tdR}>${bgCount}</td>
+    <td ${tdR}><input type="number" step="0.1" min="0" value="${fmt(bgWeight)}" ${inputS} data-wt-src="bg"></td>
+    <td ${tdR}>${fmt(bgTotalWeight)}</td>
+    <td ${tdR}>${pct(bgTotalWeight)}%</td>
+  </tr>`;
+
   for (const [cat, d] of Object.entries(catData)) {
     const label = CATEGORIES[cat]?.label || cat;
     const color = CATEGORIES[cat]?.stroke || 'var(--ink-muted)';
-    rows += `<tr><td ${tdL}><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:4px;vertical-align:middle;"></span>${label}</td><td ${tdR}>${d.count}</td><td ${tdR}>${fmt(d.weight)}</td><td ${tdRlast}>${pct(d.weight)}%</td></tr>`;
+    rows += `<tr>
+      <td ${tdL}><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color};margin-right:4px;vertical-align:middle;"></span>${label}</td>
+      <td ${tdR}>${d.count}</td>
+      <td ${tdR}><input type="number" step="0.1" min="0" value="${fmt(catPerProbe[cat])}" ${inputS} data-wt-src="${cat}"></td>
+      <td ${tdR}>${fmt(d.weight)}</td>
+      <td ${tdR}>${pct(d.weight)}%</td>
+    </tr>`;
   }
-  rows += `<tr style="border-top:1.5px solid var(--rule);font-weight:600;"><td ${tdL}>Total</td><td ${tdR}>${totalCount}</td><td ${tdR}>${fmt(totalWeight)}</td><td ${tdRlast}>100%</td></tr>`;
 
-  document.getElementById('weightSummary').innerHTML = `
+  rows += `<tr style="border-top:1.5px solid var(--rule);font-weight:600;">
+    <td ${tdL}>Total</td>
+    <td ${tdR}>${totalCount}</td>
+    <td ${tdR}></td>
+    <td ${tdR}>${fmt(totalWeight)}</td>
+    <td ${tdR}>100%</td>
+  </tr>`;
+
+  const el = document.getElementById('weightSummary');
+  el.innerHTML = `
     <table style="border-collapse:collapse;font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-muted);width:auto;">
       <thead><tr style="border-bottom:1.5px solid var(--rule);">
-        <th style="text-align:left;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);letter-spacing:0.04em;text-transform:uppercase;">Source</th>
-        <th style="text-align:right;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);">Probes</th>
-        <th style="text-align:right;padding:2px 10px 2px 0;font-weight:600;color:var(--ink-light);">Weight</th>
-        <th style="text-align:right;padding:2px 0 2px 0;font-weight:600;color:var(--ink-light);">Share</th>
+        <th ${thS}>Source</th>
+        <th ${thR}>Probes</th>
+        <th ${thR}>Per-probe wt</th>
+        <th ${thR}>Total wt</th>
+        <th ${thR}>Share</th>
       </tr></thead>
       <tbody style="font-family:var(--font-mono);font-size:0.65rem;">${rows}</tbody>
     </table>`;
+
+  // Wire up weight inputs for bulk reweighting
+  el.querySelectorAll('input[data-wt-src]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const val = parseFloat(inp.value);
+      if (isNaN(val) || val < 0) return;
+      const src = inp.dataset.wtSrc;
+      if (src === 'bg') {
+        bgWeight = val;
+      } else {
+        // Update all areas of this category
+        for (const a of areas) {
+          if (a.category === src) a.weight = val;
+        }
+        updateAreaList();
+      }
+      updateWeightSummary();
+      updateDerivedValues();
+    });
+  });
+
   document.getElementById('areaCountBadge').textContent = areas.length > 0 ? `(${areas.length})` : '';
 }
 
@@ -1450,6 +1551,113 @@ function updateDerivedValues() {
     <div class="derived-row">Eval points: <strong>~${fmtInt(points.length)}</strong> (${fmt(evalSp)}ft grid) &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong> (${fmt(safeSp)}ft grid)</div>
   `;
   updateWeightSummary();
+  updateTimeEstimate();
+}
+
+// Per-step time estimates (ms) by device.
+// msOverhead: fixed per-step cost (GPU dispatch, readback, SA logic, accept/reject)
+// msPerProbe: time per probe per step (GPU compute)
+// For ~5500 probes (default): total ≈ msOverhead + 5500 * msPerProbe
+const DEVICE_PROFILES = {
+  // Apple Silicon
+  m1:     { label: 'M1',              msOverhead: 0.30, msPerProbe: 0.00015 },
+  m1pro:  { label: 'M1 Pro',          msOverhead: 0.25, msPerProbe: 0.00010 },
+  m1max:  { label: 'M1 Max',          msOverhead: 0.22, msPerProbe: 0.00006 },
+  m2:     { label: 'M2',              msOverhead: 0.26, msPerProbe: 0.00012 },
+  m2pro:  { label: 'M2 Pro',          msOverhead: 0.22, msPerProbe: 0.00008 },
+  m2max:  { label: 'M2 Max',          msOverhead: 0.18, msPerProbe: 0.00005 },
+  m3:     { label: 'M3',              msOverhead: 0.22, msPerProbe: 0.00010 },
+  m3pro:  { label: 'M3 Pro',          msOverhead: 0.18, msPerProbe: 0.00007 },
+  m3max:  { label: 'M3 Max',          msOverhead: 0.15, msPerProbe: 0.00004 },
+  m4:     { label: 'M4',              msOverhead: 0.18, msPerProbe: 0.00007 },
+  m4pro:  { label: 'M4 Pro',          msOverhead: 0.15, msPerProbe: 0.00005 },
+  m4max:  { label: 'M4 Max',          msOverhead: 0.12, msPerProbe: 0.00003 },
+  m5:     { label: 'M5',              msOverhead: 0.16, msPerProbe: 0.00006 },
+  m5pro:  { label: 'M5 Pro',          msOverhead: 0.13, msPerProbe: 0.00004 },
+  m5max:  { label: 'M5 Max',          msOverhead: 0.10, msPerProbe: 0.00002 },
+  // Other
+  igpu:   { label: 'Integrated GPU',  msOverhead: 0.40, msPerProbe: 0.00025 },
+  dgpu:   { label: 'Discrete GPU',    msOverhead: 0.10, msPerProbe: 0.00002 },
+  cpu:    { label: 'CPU only',         msOverhead: 0.08, msPerProbe: 0.00120 },
+};
+
+function updateTimeEstimate() {
+  const el = document.getElementById('timeEstimate');
+  if (!el) return;
+  const device = document.getElementById('deviceSelect')?.value || 'm4';
+  const profile = DEVICE_PROFILES[device];
+  if (!profile) { el.textContent = ''; return; }
+
+  const iterations = parseInt(iterationsInput.value) || 500000;
+  const chains = parseInt(chainsInput.value) || 4;
+  const marginal = document.getElementById('marginalCheck')?.checked;
+  const nLamps = parseInt(numLampsInput.value) || 11;
+  const totalProbes = generatePoints().length + generateSafetyProbes().length;
+
+  // Time per step: fixed overhead + probe-proportional compute
+  const msPerStep = profile.msOverhead + totalProbes * profile.msPerProbe;
+
+  // Total lamp counts being optimized
+  const marginalRange = parseInt(document.getElementById('marginalRange')?.value) || 1;
+  const lampCounts = [];
+  if (marginal) {
+    for (let d = -marginalRange; d <= marginalRange; d++) {
+      if (nLamps + d >= 1) lampCounts.push(nLamps + d);
+    }
+  } else {
+    lampCounts.push(nLamps);
+  }
+  const totalChains = lampCounts.length * chains;
+
+  // Wall time model:
+  // Each worker has its own GPUDevice and command queue. The GPU driver
+  // interleaves work from multiple queues at the hardware scheduler level.
+  // Each dispatch is tiny (~86 workgroups for 5500 probes) and finishes in
+  // microseconds of actual GPU compute. The per-step bottleneck is dispatch
+  // overhead + readback latency (CPU↔GPU round-trip), not GPU compute.
+  //
+  // Multiple workers doing these round-trips in parallel don't serialize —
+  // they're mostly waiting on different pipeline stages. So chains run in
+  // true parallel with only minor OS/driver scheduling overhead (~10-15%
+  // per doubling of chain count).
+  //
+  // For CPU-only mode, each worker gets its own core — true parallelism
+  // up to the core count.
+
+  const secsPerChain = iterations * msPerStep / 1000;
+
+  let wallSecs;
+  if (device === 'cpu') {
+    const cpuCores = navigator.hardwareConcurrency || 4;
+    wallSecs = secsPerChain * Math.ceil(chains / cpuCores);
+  } else {
+    // GPU mode: dispatch queue is shared. Few chains interleave well (GPU is
+    // idle between dispatches). As chains increase, queue congestion grows.
+    // Model: below a threshold, nearly free. Above it, approaches linear.
+    // The threshold depends on how much idle time exists between dispatches.
+    const freeSlots = 4; // chains that fit in the GPU's idle gaps
+    if (chains <= freeSlots) {
+      wallSecs = secsPerChain; // truly parallel, no penalty
+    } else {
+      // Extra chains beyond freeSlots share the GPU more linearly.
+      // Each extra chain adds ~(1/freeSlots) of a chain's GPU time.
+      const extraChains = chains - freeSlots;
+      const gpuMs = totalProbes * profile.msPerProbe;
+      const gpuFraction = gpuMs / msPerStep;
+      wallSecs = secsPerChain * (1 + extraChains * gpuFraction / freeSlots);
+    }
+  }
+
+  wallSecs *= lampCounts.length;
+
+  const mins = wallSecs / 60;
+  let timeStr;
+  if (mins < 1) timeStr = `~${Math.round(wallSecs)}s`;
+  else if (mins < 60) timeStr = `~${Math.round(mins)} min`;
+  else timeStr = `~${fmt(mins / 60)}hr`;
+
+  const stepsPerSec = Math.round(1000 / msPerStep);
+  el.innerHTML = `Estimated time on <strong>${profile.label}</strong>: <strong>${timeStr}</strong> <span style="color:var(--ink-light);">(~${fmtInt(stepsPerSec)} steps/s per chain · ${fmtInt(totalProbes)} probes · ${totalChains} chain${totalChains > 1 ? 's' : ''})</span>`;
 }
 
 function updateBarrierList() {
@@ -1830,8 +2038,21 @@ for (const el of [numLampsInput, iterationsInput, chainsInput,
   el.addEventListener('input', updateDerivedValues);
 }
 document.querySelectorAll('input[name="mounting"]').forEach(r => {
-  r.addEventListener('change', updateDerivedValues);
+  r.addEventListener('change', () => {
+    updateDerivedValues();
+    const note = document.getElementById('mountingNote');
+    const isWall = document.querySelector('input[name="mounting"]:checked').value === 'wall';
+    if (isWall) {
+      note.style.display = 'block';
+      note.textContent = 'Edges-only constrains lamps to the room perimeter — a much smaller search space. You may get good results with fewer iterations (e.g., 200K instead of 500K).';
+    } else {
+      note.style.display = 'none';
+    }
+  });
 });
+document.getElementById('deviceSelect')?.addEventListener('change', updateTimeEstimate);
+document.getElementById('marginalCheck')?.addEventListener('change', updateTimeEstimate);
+document.getElementById('marginalRange')?.addEventListener('input', updateTimeEstimate);
 
 // ════════════════════════════════════════════════════════════════════
 // Beam profile data (OSLUV azimuthal average)
@@ -2807,9 +3028,15 @@ startBtn.addEventListener('click', () => {
   const doMarginal = document.getElementById('marginalCheck').checked;
 
   // Determine lamp counts to optimize
-  const lampCounts = doMarginal
-    ? [numLamps - 1, numLamps, numLamps + 1].filter(n => n >= 1)
-    : [numLamps];
+  const marginalRange = parseInt(document.getElementById('marginalRange')?.value) || 1;
+  const lampCounts = [];
+  if (doMarginal) {
+    for (let d = -marginalRange; d <= marginalRange; d++) {
+      if (numLamps + d >= 1) lampCounts.push(numLamps + d);
+    }
+  } else {
+    lampCounts.push(numLamps);
+  }
 
   // Determine seed
   const seedInputVal = document.getElementById('seedInput').value.trim();
@@ -2885,6 +3112,8 @@ startBtn.addEventListener('click', () => {
 
   chainResults = new Array(totalWorkers).fill(null);
   chainProgress = new Array(totalWorkers).fill(0);
+  // Track score history for convergence analysis (primary lamp count)
+  var scoreHistory = []; // [{step, score}]
 
   document.getElementById('bestScore').textContent = '\u2014';
   document.getElementById('elapsed').textContent = '0:00';
@@ -2920,6 +3149,13 @@ startBtn.addEventListener('click', () => {
       const msg = e.data;
       if (msg.type === 'status') {
         console.log(`Worker ${wIdx} (${lampCount}L C${chainIdx+1}): GPU=${msg.gpu}${msg.error ? ' ('+msg.error+')' : ''}`);
+        if (!msg.gpu && wIdx === 0) {
+          const barsEl = document.getElementById('progressBars');
+          const notice = document.createElement('div');
+          notice.style.cssText = 'font-family:var(--font-sans);font-size:0.65rem;color:#b06030;margin-bottom:0.5rem;padding:4px 8px;background:rgba(192,128,96,0.08);border-radius:3px;';
+          notice.textContent = 'WebGPU unavailable — running on CPU (slower)';
+          barsEl.insertBefore(notice, barsEl.firstChild);
+        }
       } else if (msg.type === 'progress') {
         const pct = Math.round(msg.step / msg.iterations * 100);
         chainProgress[wIdx] = pct;
@@ -2933,6 +3169,10 @@ startBtn.addEventListener('click', () => {
             score: msg.bestScore, lamps: msg.lamps,
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
+          // Record score history for primary count
+          if (lampCount === numLamps) {
+            scoreHistory.push({ step: msg.step, score: msg.bestScore });
+          }
         }
 
         // Update overall best (primary count only for heatmap/display)
@@ -3055,6 +3295,46 @@ function finishOptimization() {
     return;
   }
 
+  function convergenceHtml(history, totalIter) {
+    if (history.length < 4) return '';
+    // Split history into quarters
+    const q1End = Math.floor(history.length * 0.25);
+    const q3Start = Math.floor(history.length * 0.75);
+    const firstScore = history[0].score;
+    const q1Score = history[q1End].score;
+    const q3Score = history[q3Start].score;
+    const finalScore = history[history.length - 1].score;
+
+    const firstHalfGain = q1Score - firstScore;
+    const lastQuarterGain = finalScore - q3Score;
+    const totalGain = finalScore - firstScore;
+
+    if (totalGain <= 0) return '<div class="derived-row" style="color:var(--ink-light);">No score improvement during run.</div>';
+
+    const lastQPct = totalGain > 0 ? (lastQuarterGain / totalGain * 100) : 0;
+
+    let verdict, color;
+    if (lastQuarterGain < 0.5) {
+      verdict = 'Fully converged — more iterations unlikely to help.';
+      color = 'var(--accent)';
+    } else if (lastQPct < 5) {
+      verdict = 'Well converged — diminishing returns from more iterations.';
+      color = 'var(--accent)';
+    } else if (lastQPct < 15) {
+      verdict = 'Mostly converged — slightly more iterations might help.';
+      color = 'var(--ink-muted)';
+    } else {
+      verdict = 'Still improving — consider running with more iterations.';
+      color = '#b06030';
+    }
+
+    return `<div class="derived-row" style="margin-top:4px;">
+      <label data-tip="Shows how much score improvement happened in the last 25% of iterations vs the total. If most improvement happened early, the optimizer has converged and more iterations won't help much.">Convergence</label>:
+      <span style="color:${color};font-weight:500;">${verdict}</span>
+      <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(last 25%: +${lastQuarterGain.toFixed(1)} of ${totalGain.toFixed(1)} total gain, ${lastQPct.toFixed(0)}%)</span>
+    </div>`;
+  }
+
   // Show results
   const resultsArea = document.getElementById('resultsArea');
   resultsArea.style.display = 'block';
@@ -3070,6 +3350,7 @@ function finishOptimization() {
       <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${bestResult.floorPen.toFixed(2)}</strong>
     </div>
     <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(bestResult.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
+    ${convergenceHtml(scoreHistory, iterations)}
   `;
 
   // Lamp table
@@ -3091,7 +3372,8 @@ function finishOptimization() {
     w: getRoomW(),
     d: getRoomD(),
     ch: getCeilH(),
-    mh: getMountH()
+    mh: getMountH(),
+    score: bestResult.score.toFixed(1)
   });
   explorerLink.href = `uvc-explorer.html?${explorerParams.toString()}`;
 
@@ -3586,6 +3868,54 @@ document.getElementById('scoreBtn').addEventListener('click', () => {
   }
 });
 
+document.getElementById('scoreFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      let lampArray;
+
+      if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0])) {
+        // Direct [[x,y,aim,tilt],...] array
+        lampArray = data;
+      } else if (data?.format === 'project' && data?.data?.rooms) {
+        // .guv file — extract lamps from first room
+        const roomKey = Object.keys(data.data.rooms)[0];
+        const room = data.data.rooms[roomKey];
+        if (room?.lamps) {
+          lampArray = Object.values(room.lamps).map(l => {
+            // Convert aimx/aimy/aimz back to compass bearing + tilt
+            const dx = l.aimx - l.x, dy = l.aimy - l.y, dz = l.z - l.aimz;
+            const horiz = Math.sqrt(dx * dx + dy * dy);
+            const aimRad = Math.atan2(dx, -dy); // +y=S convention → atan2(dx, -dy)
+            const compass = ((aimRad * 180 / Math.PI) % 360 + 360) % 360;
+            const tilt = Math.atan2(dz, horiz) * 180 / Math.PI;
+            return [parseFloat(l.x.toFixed(2)), parseFloat(l.y.toFixed(2)),
+                    parseFloat(compass.toFixed(1)), parseFloat(Math.max(0, tilt).toFixed(0))];
+          });
+        }
+      } else if (data && typeof data === 'object') {
+        // Results JSON: {"N": {"lamps": [...]}}
+        const key = Object.keys(data).sort((a, b) => (data[b].score || 0) - (data[a].score || 0))[0];
+        if (data[key]?.lamps) lampArray = data[key].lamps;
+      }
+
+      if (lampArray) {
+        document.getElementById('scoreInput').value = JSON.stringify(lampArray);
+        document.getElementById('scoreBtn').click();
+      } else {
+        document.getElementById('scoreResult').textContent = 'Error: could not find lamp array in file';
+      }
+    } catch (err) {
+      document.getElementById('scoreResult').textContent = 'Error: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
 // ════════════════════════════════════════════════════════════════════
 // GeoJSON Import / Export
 // ════════════════════════════════════════════════════════════════════
@@ -3745,6 +4075,32 @@ document.getElementById('importGeoJSON').addEventListener('change', (e) => {
 // ════════════════════════════════════════════════════════════════════
 
 refresh();
+
+// WebGPU detection — show banner if unavailable
+(async function() {
+  const banner = document.getElementById('gpuBanner');
+  if (!navigator.gpu) {
+    banner.style.display = 'block';
+    banner.style.cssText = 'display:block;max-width:860px;margin:0 auto 1rem;padding:0.75rem 1.25rem;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #c08060;font-family:var(--font-sans);font-size:0.75rem;color:var(--ink-muted);line-height:1.5;';
+    banner.innerHTML = '<strong style="color:var(--ink);">WebGPU not available</strong> — the optimizer will use CPU fallback, which is significantly slower. For best performance, use Chrome, Edge, or Safari (macOS Tahoe / iOS 26+).';
+    // Auto-select CPU in device dropdown
+    const sel = document.getElementById('deviceSelect');
+    if (sel) { sel.value = 'cpu'; updateTimeEstimate(); }
+    return;
+  }
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) throw new Error('No adapter');
+    const info = await adapter.requestAdapterInfo?.() || {};
+    console.log('WebGPU available:', info.description || info.device || 'unknown GPU');
+  } catch (e) {
+    banner.style.display = 'block';
+    banner.style.cssText = 'display:block;max-width:860px;margin:0 auto 1rem;padding:0.75rem 1.25rem;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #c08060;font-family:var(--font-sans);font-size:0.75rem;color:var(--ink-muted);line-height:1.5;';
+    banner.innerHTML = '<strong style="color:var(--ink);">WebGPU initialization failed</strong> — the optimizer will use CPU fallback. Error: ' + e.message;
+    const sel = document.getElementById('deviceSelect');
+    if (sel) { sel.value = 'cpu'; updateTimeEstimate(); }
+  }
+})();
 
 // ════════════════════════════════════════════════════════════════════
 // Step indicator: IntersectionObserver + click-to-scroll

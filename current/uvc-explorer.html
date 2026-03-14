@@ -859,7 +859,7 @@ canvas#doseChart { background: #fff; }
   </div>
 </div>
 
-<div class="footer">Far-UVC Coverage Explorer · Physics: OSLUV Aerolamp DevKit beam profile · Mount: 8.1 ft</div>
+<div class="footer">Far-UVC Coverage Explorer · Physics: OSLUV Aerolamp DevKit beam profile · Mount: 8.1 ft · Built by Claude Opus 4.6</div>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -1494,8 +1494,8 @@ function updateStats() {
 function render() {
   const c=document.getElementById('mapCanvas'), ctx2=c.getContext('2d');
   ctx2.clearRect(0,0,CW,CH);
-  const drawBg = currentRoom==='10E' ? drawFloorPlan10E_Bg : drawFloorPlan10SE_Bg;
-  const drawFg = currentRoom==='10E' ? drawFloorPlan10E_Fg : drawFloorPlan10SE_Fg;
+  const drawBg = currentRoom==='10E' ? drawFloorPlan10E_Bg : currentRoom==='10SE' ? drawFloorPlan10SE_Bg : drawFloorPlanCustom_Bg;
+  const drawFg = currentRoom==='10E' ? drawFloorPlan10E_Fg : currentRoom==='10SE' ? drawFloorPlan10SE_Fg : drawFloorPlanCustom_Fg;
   if(lamps.length>0){
     const t0=performance.now();
     heatmapData=computeHeatmap();
@@ -2061,23 +2061,69 @@ document.querySelectorAll('.plume-btn').forEach(btn=>{
 // ═══════════════════════════════════════════════════════
 (function() {
   const params = new URLSearchParams(window.location.search);
-  if (params.has('lamps')) {
-    try {
-      const lampStr = params.get('lamps');
-      const parsed = lampStr.split(';').map(s => {
-        const parts = s.split(',').map(Number);
-        if (parts.length >= 4 && parts.every(n => !isNaN(n))) return parts;
-        return null;
-      }).filter(Boolean);
-      if (parsed.length > 0) {
-        lamps = parsed;
-        isCustomConfig = true;
-        document.getElementById('status').textContent = `Loaded ${lamps.length} lamps from URL`;
-        document.getElementById('lampInput').value = JSON.stringify(lamps);
+  if (!params.has('lamps')) return;
+
+  // Parse lamps
+  let parsed;
+  try {
+    parsed = params.get('lamps').split(';').map(s => {
+      const parts = s.split(',').map(Number);
+      return (parts.length >= 4 && parts.every(n => !isNaN(n))) ? parts : null;
+    }).filter(Boolean);
+  } catch(e) { console.warn('Failed to parse lamps URL param:', e); return; }
+  if (!parsed.length) return;
+
+  // If room dimensions are provided, create a Custom room
+  const w = parseFloat(params.get('w'));
+  const d = parseFloat(params.get('d'));
+  const mh = parseFloat(params.get('mh'));
+  if (w > 0 && d > 0) {
+    const mountH = mh > 0 ? mh : 8.1;
+    ROOMS['Custom'] = {
+      label: `Custom (${w}'×${d}')`,
+      w, h: d, mountH,
+      aspect: d / w,
+      compassToMath: (aimC) => ((aimC + 270) % 360) * Math.PI / 180,
+      yFlip: false,
+      barriers: [],
+      lampOptions: {
+        [String(parsed.length)]: { score: parseFloat(params.get('score')) || 0, lamps: parsed }
       }
-    } catch(e) { console.warn('Failed to parse lamps URL param:', e); }
+    };
+    // Add to room selector
+    const sel = document.getElementById('roomSel');
+    const opt = document.createElement('option');
+    opt.value = 'Custom';
+    opt.textContent = `Custom (${w}'×${d}')`;
+    sel.appendChild(opt);
+    sel.value = 'Custom';
+    currentRoom = 'Custom';
   }
+
+  lamps = parsed;
+  isCustomConfig = true;
+  document.getElementById('status').textContent = `Loaded ${parsed.length} lamps from optimizer`;
+  document.getElementById('lampInput').value = JSON.stringify(parsed);
 })();
+
+// ═══════════════════════════════════════════════════════
+// CUSTOM ROOM DRAWING (minimal — just room outline)
+// ═══════════════════════════════════════════════════════
+function drawFloorPlanCustom_Bg(ctx) {
+  const room = ROOMS[currentRoom];
+  drawRect(ctx, 0, 0, room.w, room.h, '#fff', '#333', 2);
+}
+function drawFloorPlanCustom_Fg(ctx) {
+  const room = ROOMS[currentRoom];
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ftX(0), ftY(0), room.w * sxMap, room.h * syMap);
+  // Dimension labels
+  ctx.fillStyle = '#888';
+  ctx.font = '500 11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(room.w + "' × " + room.h + "'", ftX(room.w / 2), ftY(room.h) + 16);
+}
 
 // ═══════════════════════════════════════════════════════
 // INIT
