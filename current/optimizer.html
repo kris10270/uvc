@@ -947,7 +947,7 @@ label[data-tip]:hover::after {
     <!-- Progress -->
     <div class="progress-area" id="progressArea">
       <div id="progressBars"></div>
-      <div class="progress-stats">
+      <div class="progress-stats" id="progressStats">
         <div class="progress-stat">
           <div class="stat-label">Best Score</div>
           <div class="stat-value" id="bestScore">&mdash;</div>
@@ -3118,8 +3118,25 @@ startBtn.addEventListener('click', () => {
   scoreHistory = [];
   lastIterations = iterations;
 
-  document.getElementById('bestScore').textContent = '\u2014';
-  document.getElementById('elapsed').textContent = '0:00';
+  // Build progress stats — show per-count scores when marginal
+  const statsEl = document.getElementById('progressStats');
+  if (doMarginal) {
+    let statsHtml = '';
+    for (const count of lampCounts) {
+      const isPrimary = count === numLamps;
+      statsHtml += `<div class="progress-stat">
+        <div class="stat-label">${count}L${isPrimary ? ' (primary)' : ''}</div>
+        <div class="stat-value" id="bestScore_${count}">&mdash;</div>
+      </div>`;
+    }
+    statsHtml += `<div class="progress-stat"><div class="stat-label">Elapsed</div><div class="stat-value" id="elapsed">0:00</div></div>`;
+    statsEl.innerHTML = statsHtml;
+  } else {
+    statsEl.innerHTML = `
+      <div class="progress-stat"><div class="stat-label">Best Score</div><div class="stat-value" id="bestScore">&mdash;</div></div>
+      <div class="progress-stat"><div class="stat-label">Elapsed</div><div class="stat-value" id="elapsed">0:00</div></div>
+    `;
+  }
 
   // Elapsed timer
   elapsedTimer = setInterval(() => {
@@ -3179,11 +3196,20 @@ startBtn.addEventListener('click', () => {
           scoreHistory.push({ step: msg.step, score: currentBest });
         }
 
+        // Update per-count score display
+        if (doMarginal) {
+          const countBest = perCountBest[lampCount];
+          if (countBest) {
+            const el = document.getElementById('bestScore_' + lampCount);
+            if (el) el.textContent = countBest.score.toFixed(1);
+          }
+        }
+
         // Update overall best (primary count only for heatmap/display)
         const primaryBest = perCountBest[numLamps];
         if (primaryBest && (!bestResult || primaryBest.score > bestResult.score)) {
           bestResult = primaryBest;
-          document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
+          if (!doMarginal) document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
           drawHeatmap();
         } else if (!doMarginal && (!bestResult || msg.bestScore > bestResult.score)) {
           bestResult = {
@@ -3214,10 +3240,19 @@ startBtn.addEventListener('click', () => {
           };
         }
 
+        // Update per-count score display
+        if (doMarginal) {
+          const countBest = perCountBest[lampCount];
+          if (countBest) {
+            const el = document.getElementById('bestScore_' + lampCount);
+            if (el) el.textContent = countBest.score.toFixed(1);
+          }
+        }
+
         const primaryBest = perCountBest[numLamps];
         if (primaryBest && (!bestResult || primaryBest.score > bestResult.score)) {
           bestResult = primaryBest;
-          document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
+          if (!doMarginal) document.getElementById('bestScore').textContent = primaryBest.score.toFixed(1);
           drawHeatmap();
         } else if (!doMarginal && (!bestResult || msg.bestScore > bestResult.score)) {
           bestResult = {
