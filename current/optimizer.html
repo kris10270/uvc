@@ -1020,10 +1020,11 @@ label[data-tip]:hover::after {
 <div id="gpuBanner" style="display:none;"></div>
 
 <div class="footer">
-  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing &middot; Built by Claude Opus 4.6 &middot; <a href="https://github.com/kris10270/uvc" style="color: var(--ink-light);">GitHub</a>
+  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing &middot; Built by Claude Opus 4.6 &middot; <span id="footerVersion">v1.0</span> &middot; <a href="https://github.com/kris10270/uvc" style="color: var(--ink-light);">GitHub</a>
 </div>
 
 <script>
+const UVC_VERSION = 'v1.0';
 // ════════════════════════════════════════════════════════════════════
 // State
 // ════════════════════════════════════════════════════════════════════
@@ -3869,7 +3870,7 @@ function generateGuvFile(lamps) {
 
   return {
     "guv-calcs_version": "0.6.5",
-    timestamp: new Date().toISOString().split('T')[0] + ` (optimizer ${lamps.length}-lamp)`,
+    timestamp: new Date().toISOString().split('T')[0] + ` (optimizer ${lamps.length}-lamp) (${UVC_VERSION})`,
     format: "project",
     data: {
       standard: "ANSI IES RP 27.1-22 (ACGIH Limits)",
@@ -4099,6 +4100,7 @@ function toGeoJSON() {
     type: 'FeatureCollection',
     properties: {
       name: 'UVC Room Configuration',
+      version: UVC_VERSION,
       units: 'feet',
       ceilingHeight: getCeilH(),
       mountHeight: getMountH()
