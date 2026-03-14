@@ -3645,26 +3645,37 @@ function chainAnalysisHtml(count) {
   chainScores.sort((a, b) => b - a);
   const n = chainScores.length;
   const best = chainScores[0];
-  const second = chainScores[1];
-  // Compare best to top-quartile average (excluding best itself)
-  const topQ = Math.max(1, Math.floor(n * 0.25));
-  const topQScores = chainScores.slice(1, 1 + topQ); // 2nd through top-quarter
-  const topQAvg = topQScores.reduce((a, b) => a + b, 0) / topQScores.length;
-  const gapToSecond = best - second;
-  const gapToTopQ = best - topQAvg;
-  const gapPct = best > 0 ? (gapToSecond / best * 100) : 0;
+
+  // Count how many chains are "within striking distance" of the best
+  // (within 2% of the best score). This scales naturally with chain count:
+  // - 4 chains, 3 within 2% → 75% agreement → well-explored
+  // - 20 chains, 2 within 2% → 10% agreement → lucky best
+  // - 20 chains, 12 within 2% → 60% agreement → well-explored
+  const threshold = best * 0.02; // 2% of best score
+  const nearBest = chainScores.filter(s => best - s <= threshold).length;
+  const agreementPct = nearBest / n * 100;
 
   let verdict, color;
-  if (gapPct < 0.3) { verdict = 'Top chains agree — more chains unlikely to help.'; color = 'var(--accent)'; }
-  else if (gapPct < 1) { verdict = 'Top chains are close — result is reliable.'; color = 'var(--accent)'; }
-  else if (gapPct < 3) { verdict = 'Best chain is slightly ahead — a few more chains might help.'; color = 'var(--ink-muted)'; }
-  else { verdict = 'Best chain is well ahead of 2nd place — more chains or iterations recommended.'; color = '#b06030'; }
+  if (agreementPct >= 50) {
+    verdict = `${nearBest} of ${n} chains within 2% of best — well-explored, more chains unlikely to help.`;
+    color = 'var(--accent)';
+  } else if (agreementPct >= 25) {
+    verdict = `${nearBest} of ${n} chains within 2% of best — reasonably explored.`;
+    color = 'var(--accent)';
+  } else if (nearBest >= 2) {
+    verdict = `Only ${nearBest} of ${n} chains within 2% of best — more chains or iterations may help.`;
+    color = 'var(--ink-muted)';
+  } else {
+    verdict = `Best chain is isolated (no others within 2%) — more chains or iterations recommended.`;
+    color = '#b06030';
+  }
+
   const topScores = chainScores.slice(0, Math.min(5, n)).map(s => s.toFixed(1)).join(', ');
   const suffix = n > 5 ? `, ... (${n} total)` : '';
   return `<div class="derived-row" style="margin-top:2px;">
-    <label data-tip="Compares the best chain to the runner-up. If the top chains found similar scores, the best solution is well-confirmed. A large gap between 1st and 2nd suggests the best chain found a rare solution — more chains or iterations could find even better.">Chains</label>:
+    <label data-tip="Counts how many chains found scores within 2% of the best. More agreement means the search space is well-explored and the best solution is reliable. If only one chain found a good score, it may have gotten lucky.">Chains</label>:
     <span style="color:${color};font-weight:500;">${verdict}</span>
-    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(top: ${topScores}${suffix} · 1st−2nd: ${gapToSecond.toFixed(1)}, ${gapPct.toFixed(1)}%)</span>
+    <span style="color:var(--ink-light);font-size:0.65rem;margin-left:6px;">(top: ${topScores}${suffix})</span>
   </div>`;
 }
 
