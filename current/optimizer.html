@@ -1,0 +1,3334 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Far-UVC Lamp Optimizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #fdfbf7;
+  --paper-dark: #f5f0e8;
+  --ink: #1a1a1a;
+  --ink-muted: #4a4a4a;
+  --ink-light: #8a8a8a;
+  --rule: #d4cfc4;
+  --rule-light: #e8e4db;
+  --accent: #5a4a3a;
+  --accent-warm: #7a6a5a;
+
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-serif);
+  background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dark) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.page-header {
+  text-align: center;
+  padding: 2.5rem 1rem 1.5rem;
+}
+.page-header h1 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.5rem;
+}
+.page-header .subtitle {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ink-muted);
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  line-height: 1.6;
+}
+.page-header .back-link {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.page-header .back-link:hover { color: var(--ink); }
+
+/* ── Layout ── */
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+.card h2 {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule-light);
+}
+
+/* ── Form controls ── */
+.controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.control-group label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+/* Info tooltips on labels */
+label[data-tip] {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted var(--rule);
+  display: inline-block;
+}
+label[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: 240px;
+  padding: 8px 10px;
+  background: var(--ink);
+  color: #f5f0e8;
+  font-family: var(--font-serif);
+  font-size: 0.7rem;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.5;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+label[data-tip]:hover::after {
+  opacity: 1;
+}
+.control-group input[type="number"],
+.control-group select {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.control-group input[type="number"]:focus,
+.control-group select:focus {
+  border-color: var(--ink-light);
+}
+.control-group input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+.readout {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin-top: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+/* ── Radio groups ── */
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2px;
+}
+.radio-group label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.radio-group input[type="radio"] {
+  accent-color: var(--ink);
+}
+
+/* ── Canvas area ── */
+.canvas-container {
+  position: relative;
+  margin-top: 0.75rem;
+}
+.canvas-container canvas {
+  display: block;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  cursor: crosshair;
+  background: #fff;
+}
+.canvas-coord-readout {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--ink-light);
+  background: var(--paper-dark);
+  padding: 2px 7px;
+  border-radius: 3px;
+  pointer-events: none;
+  display: none;
+  white-space: nowrap;
+}
+.instruction {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+/* ── Item lists ── */
+.item-list {
+  margin-top: 0.75rem;
+}
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  border-bottom: 1px solid var(--rule-light);
+  letter-spacing: -0.02em;
+  flex-wrap: wrap;
+}
+.item-row:last-child { border-bottom: none; }
+.item-row .delete-btn {
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  color: var(--ink-light);
+  cursor: pointer;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 1px 8px;
+  background: #fff;
+  transition: all 0.15s;
+}
+.item-row .delete-btn:hover {
+  border-color: #c44;
+  color: #c44;
+}
+.coord-input {
+  width: 55px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 3px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  text-align: center;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.coord-input:focus { border-color: var(--ink-light); }
+.coord-input::-webkit-inner-spin-button { opacity: 0.3; }
+.coord-select {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  padding: 3px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  max-width: 120px;
+}
+.btn-icon {
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.btn-icon:hover { border-color: var(--ink-light); color: var(--ink); }
+.btn-icon.btn-add { color: var(--accent); border-color: var(--accent-warm); }
+.btn-icon.btn-add:hover { color: var(--ink); }
+.item-row .item-label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-light);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.item-row.add-row {
+  border-bottom: none;
+  padding-top: 8px;
+}
+.item-row .coord-sep {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-light);
+  margin: 0 2px;
+}
+.item-row .coord-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--ink-light);
+  margin-right: 1px;
+}
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--font-sans);
+  padding: 6px 14px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--ink-light); color: var(--ink); }
+
+.btn-primary {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  font-size: 0.85rem;
+  padding: 10px 28px;
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--ink-muted); border-color: var(--ink-muted); }
+
+.btn-danger {
+  color: #b44;
+  border-color: #dcc;
+}
+.btn-danger:hover { color: #922; border-color: #b88; }
+
+.btn-sm {
+  font-family: var(--font-sans);
+  padding: 3px 8px;
+  font-size: 0.6rem;
+  font-weight: 500;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink-light);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-sm:hover { border-color: var(--ink-light); color: var(--ink); }
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Category selector ── */
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.category-row label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+.category-row select {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  padding: 5px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* ── Derived values ── */
+.derived-values {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--paper-dark);
+  border-radius: 4px;
+}
+.derived-row {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  line-height: 1.8;
+  letter-spacing: -0.02em;
+}
+.derived-row strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Start section ── */
+.start-section {
+  text-align: center;
+  padding: 1rem 0;
+}
+.start-section .btn-primary {
+  font-size: 1rem;
+  padding: 14px 40px;
+}
+
+/* ── Progress area ── */
+.progress-area {
+  display: none;
+  margin-top: 1.5rem;
+}
+.progress-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.progress-bar-label {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ink-light);
+  min-width: 60px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.progress-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: var(--rule-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+.progress-pct {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--ink-light);
+  min-width: 32px;
+  text-align: right;
+}
+.progress-score {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 50px;
+  text-align: right;
+}
+.progress-score.best-chain {
+  color: var(--ink);
+}
+.progress-stats {
+  display: flex;
+  gap: 2rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.progress-stat {
+  text-align: center;
+}
+.progress-stat .stat-label {
+  font-family: var(--font-sans);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-light);
+}
+.progress-stat .stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+/* ── Results area ── */
+.results-area {
+  display: none;
+  margin-top: 1.5rem;
+}
+.results-area h3 {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 0.5rem;
+}
+.lamp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  margin-bottom: 1rem;
+}
+.lamp-table th, .lamp-table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule-light);
+}
+.lamp-table th {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+.lamp-table td {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  letter-spacing: -0.02em;
+}
+
+/* ── Area color swatches ── */
+.area-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid var(--rule);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.75rem;
+  color: var(--ink-light);
+  padding: 1.5rem 1rem;
+  border-top: 1px solid var(--rule-light);
+  margin-top: 0.5rem;
+}
+
+/* ── Step indicator ── */
+.step-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--paper);
+  padding: 0.75rem 1rem 0.6rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+}
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  min-width: 80px;
+}
+.step-item .step-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--paper-dark);
+  color: var(--ink-light);
+  transition: all 0.2s;
+  position: relative;
+  z-index: 1;
+}
+.step-item.active .step-circle {
+  background: var(--ink);
+  color: #fff;
+}
+.step-item.completed .step-circle {
+  background: var(--accent);
+  color: #fff;
+}
+.step-item .step-label {
+  font-family: var(--font-sans);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-top: 4px;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+.step-item.active .step-label {
+  color: var(--ink);
+}
+.step-item.completed .step-label {
+  color: var(--accent);
+}
+.step-connector {
+  width: 32px;
+  height: 2px;
+  background: var(--rule-light);
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+.step-connector.completed {
+  background: var(--accent);
+}
+
+@media (max-width: 700px) {
+  .page-header h1 { font-size: 1.5rem; }
+  .controls-grid { grid-template-columns: 1fr; }
+  .card { padding: 1rem; }
+  .container { padding: 0 0.5rem 2rem; }
+  .step-item { min-width: 56px; }
+  .step-item .step-label { font-size: 0.5rem; }
+  .step-connector { width: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ Header ══ -->
+<div class="page-header">
+  <a href="uvc-explorer.html" class="back-link">&larr; Back to Coverage Explorer</a>
+  <h1>Far-UVC Lamp Optimizer</h1>
+  <p class="subtitle">Configure your room, define priority areas, and optimize lamp placement for maximum pathogen inactivation within ACGIH safety limits.</p>
+</div>
+
+<!-- ══ Step Indicator ══ -->
+<nav class="step-nav" id="stepNav">
+  <div class="step-item active" data-step="0"><div class="step-circle">1</div><div class="step-label">Room</div></div>
+  <div class="step-connector"></div>
+  <div class="step-item" data-step="1"><div class="step-circle">2</div><div class="step-label">Barriers</div></div>
+  <div class="step-connector"></div>
+  <div class="step-item" data-step="2"><div class="step-circle">3</div><div class="step-label">Areas</div></div>
+  <div class="step-connector"></div>
+  <div class="step-item" data-step="3"><div class="step-circle">4</div><div class="step-label">Settings</div></div>
+  <div class="step-connector"></div>
+  <div class="step-item" data-step="4"><div class="step-circle">5</div><div class="step-label">Optimize</div></div>
+</nav>
+
+<div class="container">
+
+  <!-- ══ Card 1: Room Configuration ══ -->
+  <div class="card">
+    <h2>&#9312; Room Dimensions</h2>
+    <div class="controls-grid">
+      <div class="control-group">
+        <label for="roomW">Room Width (ft)</label>
+        <input type="number" id="roomW" value="26" min="4" max="200" step="0.5">
+      </div>
+      <div class="control-group">
+        <label for="roomD">Room Depth (ft)</label>
+        <input type="number" id="roomD" value="48" min="4" max="200" step="0.5">
+      </div>
+      <div class="control-group">
+        <label for="ceilH">Ceiling Height (ft)</label>
+        <input type="number" id="ceilH" value="8.3" min="6" max="30" step="0.1">
+      </div>
+      <div class="control-group">
+        <label for="mountH" data-tip="Height of the lamp's lens center above the floor. Typically a few inches below the ceiling to account for the housing.">Lamp Mount Height (ft)</label>
+        <input type="number" id="mountH" value="8.1" min="6" max="30" step="0.1">
+      </div>
+    </div>
+    <div class="readout" id="areaReadout">1,248 sq ft</div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
+      <button class="btn-sm" id="exportGeoJSON">Export</button>
+      <label class="btn-sm" style="cursor:pointer;">Import<input type="file" id="importGeoJSON" accept=".json,.geojson" style="display:none;"></label>
+      <button class="btn-sm" id="copyGeoJSON">Copy</button>
+      <span style="font-family:var(--font-sans);font-size:0.6rem;color:var(--ink-light);">GeoJSON (room + barriers + areas)</span>
+      <span id="ioStatus" style="font-family:var(--font-sans);font-size:0.6rem;color:var(--accent);"></span>
+    </div>
+  </div>
+
+  <!-- ══ Card 2: Floor Plan & Barriers ══ -->
+  <div class="card">
+    <h2>&#9313; Floor Plan &amp; Barriers</h2>
+    <p class="instruction">Click two points to draw a barrier (interior wall). Right-click a barrier to remove it.</p>
+    <div class="canvas-container">
+      <canvas id="roomCanvas"></canvas>
+      <div class="canvas-coord-readout" id="roomCoordReadout"></div>
+    </div>
+    <div class="item-list" id="barrierList"></div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="clearBarriers">Clear All Barriers</button>
+    </div>
+  </div>
+
+  <!-- ══ Card 3: Priority Areas ══ -->
+  <div class="card">
+    <h2>&#9314; Priority Areas</h2>
+    <p class="instruction">Draw rectangles on the floor plan to define high-priority zones. For desk areas, choose which side people sit on — probes are placed outside the rectangle edge. The background is covered automatically at low weight.</p>
+    <div class="category-row">
+      <label for="areaCategory">Category</label>
+      <select id="areaCategory">
+        <option value="desk">Desk area (seated, 5.0ft) &mdash; weight 2.5</option>
+        <option value="walkway">Walkway (standing, 5.5ft) &mdash; weight 1.5</option>
+        <option value="social">Social / lounge (seated low, 3.5ft) &mdash; weight 2.0</option>
+        <option value="high">High priority (standing, 5.5ft) &mdash; weight 3.0</option>
+      </select>
+      <label for="areaSeatSide" data-tip="'Inside' places evaluation probes uniformly within the area. 'Seated N/E/S/W' places probes 1.5ft outside the specified edge — use this for desks where people sit on one side.">Probe placement</label>
+      <select id="areaSeatSide">
+        <option value="inside">Uniform (inside area)</option>
+        <option value="N">Seated N of area</option>
+        <option value="E">Seated E of area</option>
+        <option value="S">Seated S of area</option>
+        <option value="W">Seated W of area</option>
+      </select>
+    </div>
+    <div class="canvas-container">
+      <canvas id="areaCanvas"></canvas>
+      <div class="canvas-coord-readout" id="areaCoordReadout"></div>
+    </div>
+    <div class="item-list" id="areaList"></div>
+    <div class="btn-row">
+      <button class="btn btn-danger" id="clearAreas">Clear All Areas</button>
+    </div>
+  </div>
+
+  <!-- ══ Card 4: Optimization Settings ══ -->
+  <div class="card">
+    <h2>&#9315; Optimization Settings</h2>
+    <div class="controls-grid">
+      <div class="control-group">
+        <label for="numLamps" data-tip="How many lamps to place. More lamps give better coverage but cost more. Try a few values to find the sweet spot.">Number of Lamps</label>
+        <input type="number" id="numLamps" value="11" min="1" max="30" step="1">
+      </div>
+      <div class="control-group">
+        <label for="tlvHours" data-tip="How many hours per day people are exposed. Fewer hours allows higher irradiance (better inactivation) while staying within the ACGIH 222nm eye dose limit of 161 mJ/cm².">TLV Exposure Hours</label>
+        <select id="tlvHours">
+          <option value="1">1 hour</option>
+          <option value="2">2 hours</option>
+          <option value="3">3 hours</option>
+          <option value="4">4 hours</option>
+          <option value="6">6 hours</option>
+          <option value="8" selected>8 hours (standard)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="iterations" data-tip="Number of simulated annealing steps per chain. More iterations find better solutions but take longer. 500K is a good default; use 1M+ for publication-quality results.">Iterations per Chain</label>
+        <input type="number" id="iterations" value="500000" min="1000" max="10000000" step="1000">
+      </div>
+      <div class="control-group">
+        <label for="chains" data-tip="Independent optimization runs in parallel, each starting from a random configuration. The best result across all chains is kept. More chains reduce the chance of getting stuck in a local optimum.">Parallel Chains</label>
+        <input type="number" id="chains" min="1" max="64" step="1">
+      </div>
+      <div class="control-group">
+        <label data-tip="'Anywhere' allows lamps at any ceiling position. 'Wall & ceiling edges' constrains lamps to wall surfaces and pillar faces, with aim directed away from the mounting surface.">Mounting</label>
+        <div class="radio-group">
+          <label><input type="radio" name="mounting" value="ceiling" checked> Anywhere (ceiling)</label>
+          <label><input type="radio" name="mounting" value="wall"> Wall &amp; ceiling edges</label>
+        </div>
+      </div>
+    </div>
+    <div class="derived-values" id="derivedValues"></div>
+  </div>
+
+  <!-- ══ Card 5: Run ══ -->
+  <div class="card">
+    <h2>&#9316; Run Optimizer</h2>
+    <div class="start-section">
+      <button class="btn btn-primary" id="startBtn">&#9654; Start Optimization</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-area" id="progressArea">
+      <div id="progressBars"></div>
+      <div class="progress-stats">
+        <div class="progress-stat">
+          <div class="stat-label">Best Score</div>
+          <div class="stat-value" id="bestScore">&mdash;</div>
+        </div>
+        <div class="progress-stat">
+          <div class="stat-label">Elapsed</div>
+          <div class="stat-value" id="elapsed">0:00</div>
+        </div>
+      </div>
+      <div class="canvas-container" style="margin-top:1rem;">
+        <canvas id="heatmapCanvas"></canvas>
+      </div>
+      <div class="btn-row" style="margin-top:0.75rem; justify-content:center;">
+        <button class="btn btn-danger" id="stopBtn">Stop Early</button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-area" id="resultsArea">
+      <h3>Results</h3>
+      <div class="derived-values" id="scoreBreakdown"></div>
+      <div style="margin-top:1rem;">
+        <h3>Lamp Positions</h3>
+        <table class="lamp-table" id="lampTable">
+          <thead>
+            <tr><th>#</th><th>X (ft)</th><th>Y (ft)</th><th>Aim (&deg;)</th><th>Tilt (&deg;)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="margin-top:0.75rem;">
+        <button class="btn" id="copyConfig">Copy Config</button>
+        <button class="btn" id="downloadGuv">Download .guv</button>
+        <a href="uvc-explorer.html" class="btn" id="explorerLink" style="text-decoration:none;">View in Explorer &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Far-UVC Lamp Optimizer &middot; WebGPU + CPU Simulated Annealing
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// State
+// ════════════════════════════════════════════════════════════════════
+
+const CATEGORIES = {
+  desk:    { label: 'Desk area',      height: 5.0, weight: 2.5, color: 'rgba(212,196,160,0.40)', stroke: '#b0a080' },
+  walkway: { label: 'Walkway',        height: 5.5, weight: 1.5, color: 'rgba(196,212,176,0.40)', stroke: '#90b070' },
+  social:  { label: 'Social / lounge',height: 3.5, weight: 2.0, color: 'rgba(208,192,192,0.40)', stroke: '#b09090' },
+  high:    { label: 'High priority',  height: 5.5, weight: 3.0, color: 'rgba(192,192,212,0.40)', stroke: '#9090b0' },
+};
+
+let barriers = [];  // {x1, y1, x2, y2}
+let areas = [];     // {x, y, w, h, category, seating, weight}
+const SEAT_OFFSET = 1.5; // feet — how far outside the rectangle edge seated probes are placed
+
+// Barrier drawing state
+let barrierState = 'idle'; // idle | placing_end
+let barrierStart = null;
+let barrierPreview = null;
+
+// Area drawing state
+let areaDrawing = false;
+let areaStart = null;
+let areaCurrent = null;
+
+// ════════════════════════════════════════════════════════════════════
+// DOM refs
+// ════════════════════════════════════════════════════════════════════
+
+const roomWInput     = document.getElementById('roomW');
+const roomDInput     = document.getElementById('roomD');
+const ceilHInput     = document.getElementById('ceilH');
+const mountHInput    = document.getElementById('mountH');
+const areaReadout    = document.getElementById('areaReadout');
+const roomCanvas     = document.getElementById('roomCanvas');
+const areaCanvas     = document.getElementById('areaCanvas');
+const barrierListEl  = document.getElementById('barrierList');
+const areaListEl     = document.getElementById('areaList');
+const areaCategoryEl = document.getElementById('areaCategory');
+const numLampsInput  = document.getElementById('numLamps');
+const tlvHoursInput  = document.getElementById('tlvHours');
+const iterationsInput= document.getElementById('iterations');
+const chainsInput    = document.getElementById('chains');
+const derivedEl      = document.getElementById('derivedValues');
+const startBtn       = document.getElementById('startBtn');
+
+// Set default chains
+chainsInput.value = navigator.hardwareConcurrency || 4;
+
+// ════════════════════════════════════════════════════════════════════
+// Helpers
+// ════════════════════════════════════════════════════════════════════
+
+function getRoomW() { return parseFloat(roomWInput.value) || 26; }
+function getRoomD() { return parseFloat(roomDInput.value) || 48; }
+function getCeilH() { return parseFloat(ceilHInput.value) || 8.3; }
+function getMountH(){ return parseFloat(mountHInput.value) || 8.1; }
+
+function fmt(n, d=1) { return n.toFixed(d); }
+function fmtInt(n) { return n.toLocaleString(); }
+
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx, cy = y1 + t * dy;
+  return Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+}
+
+const MARGIN = 40;
+
+function computeScale(canvas, roomW, roomD) {
+  const maxW = canvas.width - MARGIN * 2;
+  const maxH = canvas.height - MARGIN * 2;
+  const scale = Math.min(maxW / roomW, maxH / roomD);
+  const ox = MARGIN + (maxW - roomW * scale) / 2;
+  const oy = MARGIN + (maxH - roomD * scale) / 2;
+  return { scale, ox, oy };
+}
+
+function roomToCanvas(canvas, rx, ry) {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const { scale, ox, oy } = computeScale(canvas, roomW, roomD);
+  return { x: ox + rx * scale, y: oy + ry * scale };
+}
+
+function canvasToRoom(canvas, cx, cy) {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const { scale, ox, oy } = computeScale(canvas, roomW, roomD);
+  const rx = (cx - ox) / scale;
+  const ry = (cy - oy) / scale;
+  return { x: rx, y: ry };
+}
+
+function getCanvasMousePos(canvas, e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TLV computation
+// ════════════════════════════════════════════════════════════════════
+
+const TLV_EYE_MJ = 161; // mJ/cm^2 at 222nm ACGIH 8hr
+
+function computeTLV(hours) {
+  const tlv_uwcm2 = TLV_EYE_MJ * 1000 / (hours * 3600);
+  const threshold = tlv_uwcm2 * 0.73; // 27% margin for multi-lamp overlap
+  return { tlv_uwcm2, threshold };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Eval point generation
+// ════════════════════════════════════════════════════════════════════
+
+function generatePoints() {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const points = [];
+  // Background grid: 2ft spacing, weight 0.2, height 5.0ft
+  for (let x = 1; x < roomW; x += 2) {
+    for (let y = 1; y < roomD; y += 2) {
+      points.push({ x, y, h: 5.0, w: 0.2 });
+    }
+  }
+  // Priority areas: 1ft spacing, area's height and weight
+  for (const area of areas) {
+    const cat = CATEGORIES[area.category];
+    const seat = area.seating || 'inside';
+    if (seat === 'inside') {
+      // Uniform probes inside the rectangle
+      for (let x = area.x + 0.5; x < area.x + area.w; x += 1.0) {
+        for (let y = area.y + 0.5; y < area.y + area.h; y += 1.0) {
+          points.push({ x, y, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+        }
+      }
+    } else {
+      // Probes along the specified edge, offset outside the rectangle
+      if (seat === 'N' || seat === 'S') {
+        const py = seat === 'N' ? area.y - SEAT_OFFSET : area.y + area.h + SEAT_OFFSET;
+        for (let x = area.x + 0.5; x < area.x + area.w; x += 1.0) {
+          points.push({ x, y: py, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+        }
+      } else {
+        const px = seat === 'W' ? area.x - SEAT_OFFSET : area.x + area.w + SEAT_OFFSET;
+        for (let y = area.y + 0.5; y < area.y + area.h; y += 1.0) {
+          points.push({ x: px, y, h: cat.height, w: (area.weight != null ? area.weight : cat.weight) });
+        }
+      }
+    }
+  }
+  return points;
+}
+
+function generateSafetyProbes() {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const probes = [];
+  for (let x = 0.25; x < roomW; x += 0.5) {
+    for (let y = 0.25; y < roomD; y += 0.5) {
+      probes.push({ x, y, h: 5.9 });
+    }
+  }
+  return probes;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Drawing: Room canvas (barriers)
+// ════════════════════════════════════════════════════════════════════
+
+function drawRoomCanvas() {
+  const canvas = roomCanvas;
+  const ctx = canvas.getContext('2d');
+  const roomW = getRoomW(), roomD = getRoomD();
+  const { scale, ox, oy } = computeScale(canvas, roomW, roomD);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Room fill
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(ox, oy, roomW * scale, roomD * scale);
+
+  // Room outline
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ox, oy, roomW * scale, roomD * scale);
+
+  // Dimension labels
+  ctx.font = '500 11px Inter, sans-serif';
+  ctx.fillStyle = '#8a8a8a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(fmt(roomW, 1) + ' ft', ox + roomW * scale / 2, oy + roomD * scale + 8);
+  ctx.save();
+  ctx.translate(ox - 10, oy + roomD * scale / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(fmt(roomD, 1) + ' ft', 0, 0);
+  ctx.restore();
+
+  // Grid dots (background eval points preview)
+  const showDots = scale > 8;
+  if (showDots) {
+    ctx.fillStyle = 'rgba(180,170,155,0.35)';
+    for (let x = 1; x < roomW; x += 2) {
+      for (let y = 1; y < roomD; y += 2) {
+        const px = ox + x * scale;
+        const py = oy + y * scale;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Barriers
+  ctx.setLineDash([6, 4]);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#6a5a4a';
+  for (const b of barriers) {
+    ctx.beginPath();
+    ctx.moveTo(ox + b.x1 * scale, oy + b.y1 * scale);
+    ctx.lineTo(ox + b.x2 * scale, oy + b.y2 * scale);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Barrier placement preview
+  if (barrierState === 'placing_end' && barrierStart) {
+    ctx.fillStyle = '#c44';
+    const sp = roomToCanvas(canvas, barrierStart.x, barrierStart.y);
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Preview line to mouse
+    if (barrierPreview) {
+      const ep = roomToCanvas(canvas, barrierPreview.x, barrierPreview.y);
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#c44';
+      ctx.beginPath();
+      ctx.moveTo(sp.x, sp.y);
+      ctx.lineTo(ep.x, ep.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Compass
+  ctx.font = '600 10px Inter, sans-serif';
+  ctx.fillStyle = '#b0a898';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('N', ox + roomW * scale / 2, oy - 6);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Drawing: Area canvas (priority areas)
+// ════════════════════════════════════════════════════════════════════
+
+function drawAreaCanvas() {
+  const canvas = areaCanvas;
+  const ctx = canvas.getContext('2d');
+  const roomW = getRoomW(), roomD = getRoomD();
+  const { scale, ox, oy } = computeScale(canvas, roomW, roomD);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Room fill
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(ox, oy, roomW * scale, roomD * scale);
+
+  // Priority areas
+  for (const area of areas) {
+    const cat = CATEGORIES[area.category];
+    const ax = ox + area.x * scale;
+    const ay = oy + area.y * scale;
+    const aw = area.w * scale;
+    const ah = area.h * scale;
+
+    ctx.fillStyle = cat.color;
+    ctx.fillRect(ax, ay, aw, ah);
+    ctx.strokeStyle = cat.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(ax, ay, aw, ah);
+
+    // Label
+    const seat = area.seating || 'inside';
+    if (aw > 40 && ah > 20) {
+      ctx.font = '500 10px Inter, sans-serif';
+      ctx.fillStyle = cat.stroke;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const seatLabel = seat === 'inside' ? cat.label : cat.label + ' (seated ' + seat + ')';
+      ctx.fillText(seatLabel, ax + aw / 2, ay + ah / 2);
+    }
+
+    // Show seating probes if directional
+    if (seat !== 'inside') {
+      const so = SEAT_OFFSET * scale;
+      ctx.fillStyle = cat.stroke;
+      if (seat === 'N' || seat === 'S') {
+        const py = seat === 'N' ? ay - so : ay + ah + so;
+        // Dashed line along seating edge
+        ctx.strokeStyle = cat.stroke;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(ax, py);
+        ctx.lineTo(ax + aw, py);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Probe dots
+        for (let x = area.x + 0.5; x < area.x + area.w; x += 1.0) {
+          const dx = ox + x * scale;
+          ctx.beginPath();
+          ctx.arc(dx, py, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        const px = seat === 'W' ? ax - so : ax + aw + so;
+        ctx.strokeStyle = cat.stroke;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(px, ay);
+        ctx.lineTo(px, ay + ah);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (let y = area.y + 0.5; y < area.y + area.h; y += 1.0) {
+          const dy = oy + y * scale;
+          ctx.beginPath();
+          ctx.arc(px, dy, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      // Small arrow from rect to probes
+      ctx.font = '600 11px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const arrow = seat === 'N' ? '↑' : seat === 'S' ? '↓' : seat === 'W' ? '←' : '→';
+      const arrowX = seat === 'W' ? ax - so / 2 : seat === 'E' ? ax + aw + so / 2 : ax + aw / 2;
+      const arrowY = seat === 'N' ? ay - so / 2 : seat === 'S' ? ay + ah + so / 2 : ay + ah / 2;
+      ctx.fillText(arrow, arrowX, arrowY);
+    }
+  }
+
+  // Currently drawing area
+  if (areaDrawing && areaStart && areaCurrent) {
+    const cat = CATEGORIES[areaCategoryEl.value];
+    const rx = Math.min(areaStart.x, areaCurrent.x);
+    const ry = Math.min(areaStart.y, areaCurrent.y);
+    const rw = Math.abs(areaCurrent.x - areaStart.x);
+    const rh = Math.abs(areaCurrent.y - areaStart.y);
+
+    const ax = ox + rx * scale;
+    const ay = oy + ry * scale;
+    const aw = rw * scale;
+    const ah = rh * scale;
+
+    ctx.fillStyle = cat.color;
+    ctx.fillRect(ax, ay, aw, ah);
+    ctx.strokeStyle = cat.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(ax, ay, aw, ah);
+    ctx.setLineDash([]);
+  }
+
+  // Barriers (shown as context)
+  if (barriers.length > 0) {
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(106,90,74,0.4)';
+    for (const b of barriers) {
+      ctx.beginPath();
+      ctx.moveTo(ox + b.x1 * scale, oy + b.y1 * scale);
+      ctx.lineTo(ox + b.x2 * scale, oy + b.y2 * scale);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // Room outline
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ox, oy, roomW * scale, roomD * scale);
+
+  // Dimension labels
+  ctx.font = '500 11px Inter, sans-serif';
+  ctx.fillStyle = '#8a8a8a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(fmt(roomW, 1) + ' ft', ox + roomW * scale / 2, oy + roomD * scale + 8);
+  ctx.save();
+  ctx.translate(ox - 10, oy + roomD * scale / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(fmt(roomD, 1) + ' ft', 0, 0);
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Canvas sizing
+// ════════════════════════════════════════════════════════════════════
+
+function resizeCanvases() {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const aspect = roomD / roomW;
+  const containerWidth = Math.min(780, document.querySelector('.container').clientWidth - 48);
+
+  const totalW = containerWidth;
+  const innerW = totalW - MARGIN * 2;
+  const innerH = innerW * aspect;
+  const totalH = innerH + MARGIN * 2;
+
+  for (const c of [roomCanvas, areaCanvas, document.getElementById('heatmapCanvas')]) {
+    c.width = totalW;
+    c.height = totalH;
+    c.style.width = totalW + 'px';
+    c.style.height = totalH + 'px';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Update functions
+// ════════════════════════════════════════════════════════════════════
+
+function updateAreaReadout() {
+  const area = getRoomW() * getRoomD();
+  areaReadout.textContent = fmtInt(Math.round(area)) + ' sq ft';
+}
+
+function updateDerivedValues() {
+  const hours = parseInt(tlvHoursInput.value);
+  const { tlv_uwcm2, threshold } = computeTLV(hours);
+  const points = generatePoints();
+  const probes = generateSafetyProbes();
+
+  derivedEl.innerHTML = `
+    <div class="derived-row">Eye TLV at 222nm: <strong>${fmt(tlv_uwcm2, 2)} &micro;W/cm&sup2;</strong> (${TLV_EYE_MJ} mJ/cm&sup2; over ${hours}hrs)</div>
+    <div class="derived-row">Safety threshold: <strong>${fmt(threshold, 2)} &micro;W/cm&sup2;</strong> (with 27% margin)</div>
+    <div class="derived-row">Eval points: <strong>~${fmtInt(points.length)}</strong> &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong></div>
+  `;
+}
+
+function updateBarrierList() {
+  barrierListEl.innerHTML = '';
+  barriers.forEach((b, i) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <span class="item-label">Wall:</span>
+      <input type="number" step="0.1" value="${fmt(b.x1)}" class="coord-input" data-idx="${i}" data-field="x1">
+      <span class="coord-sep">,</span>
+      <input type="number" step="0.1" value="${fmt(b.y1)}" class="coord-input" data-idx="${i}" data-field="y1">
+      <span class="coord-sep">&rarr;</span>
+      <input type="number" step="0.1" value="${fmt(b.x2)}" class="coord-input" data-idx="${i}" data-field="x2">
+      <span class="coord-sep">,</span>
+      <input type="number" step="0.1" value="${fmt(b.y2)}" class="coord-input" data-idx="${i}" data-field="y2">
+      <button class="btn-icon" title="Delete" data-idx="${i}">&times;</button>
+    `;
+    row.querySelectorAll('.coord-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const idx = parseInt(inp.dataset.idx);
+        const field = inp.dataset.field;
+        const val = parseFloat(inp.value);
+        if (isNaN(val)) return;
+        barriers[idx][field] = val;
+        drawRoomCanvas();
+        drawAreaCanvas();
+      });
+    });
+    row.querySelector('.btn-icon').addEventListener('click', () => {
+      barriers.splice(i, 1);
+      updateBarrierList();
+      drawRoomCanvas();
+      drawAreaCanvas();
+    });
+    barrierListEl.appendChild(row);
+  });
+
+  // Add row
+  const addRow = document.createElement('div');
+  addRow.className = 'item-row add-row';
+  addRow.innerHTML = `
+    <span class="item-label">Add:</span>
+    <input type="number" step="0.1" placeholder="x1" class="coord-input" id="addBarX1">
+    <span class="coord-sep">,</span>
+    <input type="number" step="0.1" placeholder="y1" class="coord-input" id="addBarY1">
+    <span class="coord-sep">&rarr;</span>
+    <input type="number" step="0.1" placeholder="x2" class="coord-input" id="addBarX2">
+    <span class="coord-sep">,</span>
+    <input type="number" step="0.1" placeholder="y2" class="coord-input" id="addBarY2">
+    <button class="btn-icon btn-add" title="Add">+</button>
+  `;
+  addRow.querySelector('.btn-add').addEventListener('click', () => {
+    const x1 = parseFloat(document.getElementById('addBarX1').value);
+    const y1 = parseFloat(document.getElementById('addBarY1').value);
+    const x2 = parseFloat(document.getElementById('addBarX2').value);
+    const y2 = parseFloat(document.getElementById('addBarY2').value);
+    if ([x1, y1, x2, y2].some(v => isNaN(v))) return;
+    const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    if (len > 0.3) {
+      barriers.push({ x1, y1, x2, y2 });
+      updateBarrierList();
+      drawRoomCanvas();
+      drawAreaCanvas();
+    }
+  });
+  barrierListEl.appendChild(addRow);
+}
+
+function updateAreaList() {
+  areaListEl.innerHTML = '';
+  const catKeys = Object.keys(CATEGORIES);
+  areas.forEach((a, i) => {
+    const cat = CATEGORIES[a.category];
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const options = catKeys.map(k =>
+      `<option value="${k}"${k === a.category ? ' selected' : ''}>${CATEGORIES[k].label}</option>`
+    ).join('');
+    const seat = a.seating || 'inside';
+    const seatOptions = ['inside','N','E','S','W'].map(s =>
+      `<option value="${s}"${s === seat ? ' selected' : ''}>${s === 'inside' ? 'Inside' : 'Seated '+s}</option>`
+    ).join('');
+    const wt = a.weight != null ? a.weight : cat.weight;
+    row.innerHTML = `
+      <select class="coord-select cat-select" data-idx="${i}">${options}</select>
+      <select class="coord-select seat-select" data-idx="${i}" style="width:80px;">${seatOptions}</select>
+      <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="${fmt(wt)}" class="coord-input wt-input" data-idx="${i}" style="width:42px;">
+      <span class="coord-label">x:</span><input type="number" step="0.1" value="${fmt(a.x)}" class="coord-input" data-idx="${i}" data-field="x">
+      <span class="coord-label">y:</span><input type="number" step="0.1" value="${fmt(a.y)}" class="coord-input" data-idx="${i}" data-field="y">
+      <span class="coord-label">w:</span><input type="number" step="0.1" value="${fmt(a.w)}" class="coord-input" data-idx="${i}" data-field="w">
+      <span class="coord-label">h:</span><input type="number" step="0.1" value="${fmt(a.h)}" class="coord-input" data-idx="${i}" data-field="h">
+      <button class="btn-icon" title="Delete" data-idx="${i}">&times;</button>
+    `;
+    row.querySelector('.cat-select').addEventListener('change', (e) => {
+      areas[i].category = e.target.value;
+      // Reset weight to new category default if not manually overridden
+      areas[i].weight = CATEGORIES[e.target.value].weight;
+      updateAreaList();
+      drawAreaCanvas();
+      updateDerivedValues();
+    });
+    row.querySelector('.seat-select').addEventListener('change', (e) => {
+      areas[i].seating = e.target.value;
+      drawAreaCanvas();
+      updateDerivedValues();
+    });
+    row.querySelector('.wt-input').addEventListener('change', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val) && val >= 0) areas[i].weight = val;
+      updateDerivedValues();
+    });
+    row.querySelectorAll('.coord-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const idx = parseInt(inp.dataset.idx);
+        const field = inp.dataset.field;
+        const val = parseFloat(inp.value);
+        if (isNaN(val)) return;
+        areas[idx][field] = val;
+        drawAreaCanvas();
+        updateDerivedValues();
+      });
+    });
+    row.querySelector('.btn-icon').addEventListener('click', () => {
+      areas.splice(i, 1);
+      updateAreaList();
+      drawAreaCanvas();
+      updateDerivedValues();
+    });
+    areaListEl.appendChild(row);
+  });
+
+  // Add row
+  const addRow = document.createElement('div');
+  addRow.className = 'item-row add-row';
+  const addOptions = catKeys.map(k =>
+    `<option value="${k}">${CATEGORIES[k].label}</option>`
+  ).join('');
+  const seatOpts = ['inside','N','E','S','W'].map(s =>
+    `<option value="${s}">${s === 'inside' ? 'Inside' : 'Seated '+s}</option>`
+  ).join('');
+  addRow.innerHTML = `
+    <select class="coord-select" id="addAreaCat">${addOptions}</select>
+    <select class="coord-select" id="addAreaSeat" style="width:80px;">${seatOpts}</select>
+    <span class="coord-label">wt:</span><input type="number" step="0.1" min="0" value="2.5" class="coord-input" id="addAreaWt" style="width:42px;">
+    <span class="coord-label">x:</span><input type="number" step="0.1" placeholder="x" class="coord-input" id="addAreaX">
+    <span class="coord-label">y:</span><input type="number" step="0.1" placeholder="y" class="coord-input" id="addAreaY">
+    <span class="coord-label">w:</span><input type="number" step="0.1" placeholder="w" class="coord-input" id="addAreaW">
+    <span class="coord-label">h:</span><input type="number" step="0.1" placeholder="h" class="coord-input" id="addAreaH">
+    <button class="btn-icon btn-add" title="Add">+</button>
+  `;
+  // Update weight default when category changes
+  addRow.querySelector('#addAreaCat').addEventListener('change', (e) => {
+    const wt = CATEGORIES[e.target.value]?.weight || 2.5;
+    document.getElementById('addAreaWt').value = wt;
+  });
+  addRow.querySelector('.btn-add').addEventListener('click', () => {
+    const x = parseFloat(document.getElementById('addAreaX').value);
+    const y = parseFloat(document.getElementById('addAreaY').value);
+    const w = parseFloat(document.getElementById('addAreaW').value);
+    const h = parseFloat(document.getElementById('addAreaH').value);
+    const category = document.getElementById('addAreaCat').value;
+    const seating = document.getElementById('addAreaSeat').value;
+    const weight = parseFloat(document.getElementById('addAreaWt').value) || CATEGORIES[category].weight;
+    if ([x, y, w, h].some(v => isNaN(v))) return;
+    if (w >= 0.5 && h >= 0.5) {
+      areas.push({ x, y, w, h, category, seating, weight });
+      updateAreaList();
+      drawAreaCanvas();
+      updateDerivedValues();
+    }
+  });
+  areaListEl.appendChild(addRow);
+}
+
+function refresh() {
+  resizeCanvases();
+  drawRoomCanvas();
+  drawAreaCanvas();
+  updateBarrierList();
+  updateAreaList();
+  updateAreaReadout();
+  updateDerivedValues();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Barrier canvas interactions
+// ════════════════════════════════════════════════════════════════════
+
+roomCanvas.addEventListener('click', (e) => {
+  const pos = getCanvasMousePos(roomCanvas, e);
+  const room = canvasToRoom(roomCanvas, pos.x, pos.y);
+  const roomW = getRoomW(), roomD = getRoomD();
+
+  // Clamp to room bounds
+  if (room.x < 0 || room.x > roomW || room.y < 0 || room.y > roomD) return;
+
+  if (barrierState === 'idle') {
+    barrierStart = { x: room.x, y: room.y };
+    barrierState = 'placing_end';
+    drawRoomCanvas();
+  } else if (barrierState === 'placing_end') {
+    // Create arbitrary-angle barrier
+    const x1 = Math.round(barrierStart.x * 2) / 2;
+    const y1 = Math.round(barrierStart.y * 2) / 2;
+    const x2 = Math.round(room.x * 2) / 2;
+    const y2 = Math.round(room.y * 2) / 2;
+    const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    if (len > 0.3) {
+      barriers.push({ x1, y1, x2, y2 });
+      updateBarrierList();
+    }
+    barrierStart = null;
+    barrierPreview = null;
+    barrierState = 'idle';
+    drawRoomCanvas();
+    drawAreaCanvas();
+  }
+});
+
+roomCanvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (barrierState === 'placing_end') {
+    // Cancel placement
+    barrierStart = null;
+    barrierPreview = null;
+    barrierState = 'idle';
+    drawRoomCanvas();
+    return;
+  }
+  // Delete nearest barrier (point-to-segment distance)
+  const pos = getCanvasMousePos(roomCanvas, e);
+  const room = canvasToRoom(roomCanvas, pos.x, pos.y);
+  let bestDist = 0.5; // ft threshold
+  let bestIdx = -1;
+  barriers.forEach((b, i) => {
+    const d = pointToSegmentDist(room.x, room.y, b.x1, b.y1, b.x2, b.y2);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  });
+  if (bestIdx >= 0) {
+    barriers.splice(bestIdx, 1);
+    updateBarrierList();
+    drawRoomCanvas();
+    drawAreaCanvas();
+  }
+});
+
+roomCanvas.addEventListener('mousemove', (e) => {
+  // Coordinate readout
+  const pos = getCanvasMousePos(roomCanvas, e);
+  const room = canvasToRoom(roomCanvas, pos.x, pos.y);
+  const roomW = getRoomW(), roomD = getRoomD();
+  const readout = document.getElementById('roomCoordReadout');
+  if (room.x >= 0 && room.x <= roomW && room.y >= 0 && room.y <= roomD) {
+    readout.textContent = `X: ${fmt(room.x)} ft  Y: ${fmt(room.y)} ft`;
+    readout.style.display = 'block';
+  } else {
+    readout.style.display = 'none';
+  }
+  // Barrier preview
+  if (barrierState === 'placing_end') {
+    barrierPreview = {
+      x: Math.max(0, Math.min(roomW, room.x)),
+      y: Math.max(0, Math.min(roomD, room.y)),
+    };
+    drawRoomCanvas();
+  }
+});
+
+roomCanvas.addEventListener('mouseleave', () => {
+  document.getElementById('roomCoordReadout').style.display = 'none';
+});
+
+document.getElementById('clearBarriers').addEventListener('click', () => {
+  barriers = [];
+  updateBarrierList();
+  drawRoomCanvas();
+  drawAreaCanvas();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Area canvas interactions (click-drag to draw rectangles)
+// ════════════════════════════════════════════════════════════════════
+
+areaCanvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const pos = getCanvasMousePos(areaCanvas, e);
+  const room = canvasToRoom(areaCanvas, pos.x, pos.y);
+  const roomW = getRoomW(), roomD = getRoomD();
+  if (room.x < 0 || room.x > roomW || room.y < 0 || room.y > roomD) return;
+
+  areaDrawing = true;
+  areaStart = { x: room.x, y: room.y };
+  areaCurrent = { x: room.x, y: room.y };
+});
+
+areaCanvas.addEventListener('mousemove', (e) => {
+  // Coordinate readout
+  const pos = getCanvasMousePos(areaCanvas, e);
+  const room = canvasToRoom(areaCanvas, pos.x, pos.y);
+  const roomW = getRoomW(), roomD = getRoomD();
+  const readout = document.getElementById('areaCoordReadout');
+  if (room.x >= 0 && room.x <= roomW && room.y >= 0 && room.y <= roomD) {
+    readout.textContent = `X: ${fmt(room.x)} ft  Y: ${fmt(room.y)} ft`;
+    readout.style.display = 'block';
+  } else {
+    readout.style.display = 'none';
+  }
+  // Area drawing
+  if (!areaDrawing) return;
+  areaCurrent = {
+    x: Math.max(0, Math.min(roomW, room.x)),
+    y: Math.max(0, Math.min(roomD, room.y)),
+  };
+  drawAreaCanvas();
+});
+
+areaCanvas.addEventListener('mouseleave', () => {
+  document.getElementById('areaCoordReadout').style.display = 'none';
+});
+
+areaCanvas.addEventListener('mouseup', (e) => {
+  if (!areaDrawing) return;
+  areaDrawing = false;
+  if (!areaStart || !areaCurrent) return;
+
+  const x = Math.round(Math.min(areaStart.x, areaCurrent.x) * 2) / 2;
+  const y = Math.round(Math.min(areaStart.y, areaCurrent.y) * 2) / 2;
+  const w = Math.round(Math.abs(areaCurrent.x - areaStart.x) * 2) / 2;
+  const h = Math.round(Math.abs(areaCurrent.y - areaStart.y) * 2) / 2;
+
+  if (w >= 0.5 && h >= 0.5) {
+    const cat = areaCategoryEl.value;
+    areas.push({ x, y, w, h, category: cat, seating: document.getElementById('areaSeatSide').value, weight: CATEGORIES[cat].weight });
+    updateAreaList();
+    updateDerivedValues();
+  }
+
+  areaStart = null;
+  areaCurrent = null;
+  drawAreaCanvas();
+});
+
+areaCanvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  // Delete area under cursor
+  const pos = getCanvasMousePos(areaCanvas, e);
+  const room = canvasToRoom(areaCanvas, pos.x, pos.y);
+  for (let i = areas.length - 1; i >= 0; i--) {
+    const a = areas[i];
+    if (room.x >= a.x && room.x <= a.x + a.w && room.y >= a.y && room.y <= a.y + a.h) {
+      areas.splice(i, 1);
+      updateAreaList();
+      drawAreaCanvas();
+      updateDerivedValues();
+      break;
+    }
+  }
+});
+
+document.getElementById('clearAreas').addEventListener('click', () => {
+  areas = [];
+  updateAreaList();
+  drawAreaCanvas();
+  updateDerivedValues();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Input change listeners
+// ════════════════════════════════════════════════════════════════════
+
+for (const el of [roomWInput, roomDInput, ceilHInput, mountHInput]) {
+  el.addEventListener('input', refresh);
+}
+tlvHoursInput.addEventListener('change', updateDerivedValues);
+for (const el of [numLampsInput, iterationsInput, chainsInput]) {
+  el.addEventListener('input', updateDerivedValues);
+}
+document.querySelectorAll('input[name="mounting"]').forEach(r => {
+  r.addEventListener('change', updateDerivedValues);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Beam profile data (OSLUV azimuthal average)
+// ════════════════════════════════════════════════════════════════════
+
+const BEAM_THETA_DEG = [0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90];
+const BEAM_I_MWSR = [94.5,93.7,91.8,89.3,85.8,77.0,60.5,34.2,14.0,5.1,2.1,0.9,0.65,0.6,0.4,0.3,0.2,0.1,0.0];
+const BEAM_THETA_RAD = BEAM_THETA_DEG.map(d => d * Math.PI / 180);
+const THETA_STEP_RAD = 5 * Math.PI / 180; // 0.08727 rad
+
+// ════════════════════════════════════════════════════════════════════
+// Constants
+// ════════════════════════════════════════════════════════════════════
+
+const BENEFIT_CAP = 4.0;
+const MIN_IRRADIANCE = 1.0;
+const MIN_IRR_PENALTY_WEIGHT = 10.0;
+const MIN_LAMP_SPACING = 2.0;
+const WALL_INSET = 0.3;
+const SAFETY_HEIGHT = 5.9;
+const EYE_FOV_VERT_DEG = 80;
+const SAFETY_PENALTY_FINAL = 300.0;
+const AIM_OPTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
+const FT2M = 0.3048;
+
+// ════════════════════════════════════════════════════════════════════
+// CPU irradiance (used for heatmap + CPU fallback)
+// ════════════════════════════════════════════════════════════════════
+
+function beamInterp(theta) {
+  if (theta <= 0) return BEAM_I_MWSR[0];
+  if (theta >= Math.PI / 2) return 0;
+  const fi = theta / THETA_STEP_RAD;
+  const i0 = Math.min(Math.floor(fi), 17);
+  const frac = fi - i0;
+  return BEAM_I_MWSR[i0] * (1 - frac) + BEAM_I_MWSR[i0 + 1] * frac;
+}
+
+function segmentsIntersect2D(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+  const dx = ax2 - ax1, dy = ay2 - ay1;
+  const ex = bx2 - bx1, ey = by2 - by1;
+  const denom = dx * ey - dy * ex;
+  if (Math.abs(denom) < 1e-12) return false;
+  const t = ((bx1 - ax1) * ey - (by1 - ay1) * ex) / denom;
+  const u = ((bx1 - ax1) * dy - (by1 - ay1) * dx) / denom;
+  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999;
+}
+
+function irrOneLamp(lx, ly, bx, by, bz, mountH, px, py, ph, barrs) {
+  const vx = px - lx, vy = py - ly, vz = ph - mountH;
+  const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
+  const dm = d * FT2M;
+  const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
+  if (ct < 0) return 0;
+  const theta = Math.acos(ct);
+  const I = beamInterp(theta);
+  if (I <= 0) return 0;
+  // Barrier check
+  for (const bar of barrs) {
+    if (segmentsIntersect2D(lx, ly, px, py, bar.x1, bar.y1, bar.x2, bar.y2)) return 0;
+  }
+  return 0.1 * I / (dm * dm);
+}
+
+function irrOneLampSafety(lx, ly, bx, by, bz, mountH, px, py, ph, barrs) {
+  const vx = px - lx, vy = py - ly, vz = ph - mountH;
+  const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
+  const dm = d * FT2M;
+  const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
+  if (ct < 0) return 0;
+  const theta = Math.acos(ct);
+  const I = beamInterp(theta);
+  if (I <= 0) return 0;
+  // Barrier check
+  for (const bar of barrs) {
+    if (segmentsIntersect2D(lx, ly, px, py, bar.x1, bar.y1, bar.x2, bar.y2)) return 0;
+  }
+  let E = 0.1 * I / (dm * dm);
+  // Eye safety weighting
+  const thetaVert = Math.acos(Math.max(Math.min((mountH - ph) / d, 1), -1));
+  const fovHalf = EYE_FOV_VERT_DEG / 2 * Math.PI / 180;
+  if (thetaVert < (Math.PI / 2 - fovHalf) || thetaVert > (Math.PI / 2 + fovHalf)) return 0;
+  E *= Math.sin(thetaVert);
+  return E;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Heatmap rendering
+// ════════════════════════════════════════════════════════════════════
+
+let bestResult = null; // { lamps: [{x,y,aim,tilt}], score, benefit, safetyPen, floorPen }
+
+function drawHeatmap() {
+  const canvas = document.getElementById('heatmapCanvas');
+  const ctx = canvas.getContext('2d');
+  const roomW = getRoomW(), roomD = getRoomD();
+  const mountH = getMountH();
+  const { scale, ox, oy } = computeScale(canvas, roomW, roomD);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Room fill
+  ctx.fillStyle = '#faf8f4';
+  ctx.fillRect(ox, oy, roomW * scale, roomD * scale);
+
+  if (bestResult && bestResult.lamps) {
+    const lamps = bestResult.lamps;
+    // Precompute beam vectors
+    const lampData = lamps.map(l => {
+      const aimRad = ((l.aim + 270) % 360) * Math.PI / 180;
+      const tiltRad = l.tilt * Math.PI / 180;
+      return {
+        x: l.x, y: l.y,
+        bx: Math.cos(aimRad) * Math.cos(tiltRad),
+        by: Math.sin(aimRad) * Math.cos(tiltRad),
+        bz: -Math.sin(tiltRad)
+      };
+    });
+
+    // Coarse grid heatmap (1ft spacing)
+    const gridStep = 1.0;
+    for (let gx = gridStep/2; gx < roomW; gx += gridStep) {
+      for (let gy = gridStep/2; gy < roomD; gy += gridStep) {
+        let totalIrr = 0;
+        for (const ld of lampData) {
+          totalIrr += irrOneLamp(ld.x, ld.y, ld.bx, ld.by, ld.bz, mountH, gx, gy, 5.0, barriers);
+        }
+        let color = null;
+        if (totalIrr >= 2.0) color = 'rgba(143,100,60,0.6)';
+        else if (totalIrr >= 1.0) color = 'rgba(180,140,80,0.5)';
+        else if (totalIrr >= 0.5) color = 'rgba(210,185,120,0.4)';
+        if (color) {
+          ctx.fillStyle = color;
+          ctx.fillRect(
+            ox + (gx - gridStep/2) * scale,
+            oy + (gy - gridStep/2) * scale,
+            gridStep * scale,
+            gridStep * scale
+          );
+        }
+      }
+    }
+
+    // Priority areas (outlines)
+    for (const area of areas) {
+      const cat = CATEGORIES[area.category];
+      ctx.strokeStyle = cat.stroke;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(ox + area.x * scale, oy + area.y * scale, area.w * scale, area.h * scale);
+    }
+    ctx.setLineDash([]);
+
+    // Barriers
+    if (barriers.length > 0) {
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#6a5a4a';
+      for (const b of barriers) {
+        ctx.beginPath();
+        ctx.moveTo(ox + b.x1 * scale, oy + b.y1 * scale);
+        ctx.lineTo(ox + b.x2 * scale, oy + b.y2 * scale);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    // Lamp positions (stars with aim arrows)
+    for (const l of lamps) {
+      const cx = ox + l.x * scale;
+      const cy = oy + l.y * scale;
+      const r = 6;
+
+      // Star shape
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 72 - 90) * Math.PI / 180;
+        const ai = ((i * 72 + 36) - 90) * Math.PI / 180;
+        ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+        ctx.lineTo(cx + r * 0.4 * Math.cos(ai), cy + r * 0.4 * Math.sin(ai));
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Aim arrow
+      const aimRad = ((l.aim + 270) % 360) * Math.PI / 180;
+      const arrowLen = 14;
+      ctx.strokeStyle = '#c44';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + arrowLen * Math.cos(aimRad), cy + arrowLen * Math.sin(aimRad));
+      ctx.stroke();
+      // Arrowhead
+      const ax = cx + arrowLen * Math.cos(aimRad);
+      const ay = cy + arrowLen * Math.sin(aimRad);
+      ctx.fillStyle = '#c44';
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - 5 * Math.cos(aimRad - 0.5), ay - 5 * Math.sin(aimRad - 0.5));
+      ctx.lineTo(ax - 5 * Math.cos(aimRad + 0.5), ay - 5 * Math.sin(aimRad + 0.5));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Room outline
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ox, oy, roomW * scale, roomD * scale);
+
+  // Compass
+  ctx.font = '600 10px Inter, sans-serif';
+  ctx.fillStyle = '#b0a898';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('N', ox + roomW * scale / 2, oy - 6);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Web Worker code (inline)
+// ════════════════════════════════════════════════════════════════════
+
+function buildWorkerSource() {
+  return `
+// ── Web Worker: SA Optimizer with WebGPU (or CPU fallback) ──
+
+// xoshiro128** PRNG
+let s0, s1, s2, s3;
+function initRNG(seed) {
+  // splitmix32 to seed xoshiro
+  function sm(s) { s |= 0; s = Math.imul(s ^ (s >>> 16), 0x85ebca6b); s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35); return (s ^= s >>> 16) >>> 0; }
+  s0 = sm(seed); s1 = sm(s0); s2 = sm(s1); s3 = sm(s2);
+}
+function nextU32() {
+  const r = Math.imul(s1 * 5, 7) | 0;
+  const result = (((r << 7) | (r >>> 25)) * 9) >>> 0;
+  const t = s1 << 9;
+  s2 ^= s0; s3 ^= s1; s1 ^= s2; s0 ^= s3;
+  s2 ^= t; s3 = ((s3 << 11) | (s3 >>> 21));
+  return result;
+}
+function rand() { return nextU32() / 4294967296; }
+function randNorm() {
+  // Box-Muller
+  const u1 = rand() || 1e-10;
+  const u2 = rand();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+function randInt(n) { return (nextU32() % n); }
+
+// ── Constants ──
+const BEAM_THETA_DEG = [0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90];
+const BEAM_I_MWSR = [94.5,93.7,91.8,89.3,85.8,77.0,60.5,34.2,14.0,5.1,2.1,0.9,0.65,0.6,0.4,0.3,0.2,0.1,0.0];
+const THETA_STEP_RAD = 5 * Math.PI / 180;
+const BENEFIT_CAP = 4.0;
+const MIN_IRRADIANCE = 1.0;
+const MIN_IRR_PENALTY_WEIGHT = 10.0;
+const MIN_LAMP_SPACING = 2.0;
+const WALL_INSET = 0.3;
+const EYE_FOV_VERT_DEG = 80;
+const SAFETY_PENALTY_FINAL = 300.0;
+const AIM_OPTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
+const FT2M = 0.3048;
+
+// ── Config (set on init) ──
+let cfg = null;
+let nLamps, nEval, nSafety, nBarriers;
+let evalPts, safetyPts, barrierData;
+
+// ── Lamp state ──
+let lampX, lampY, lampAim, lampTilt;
+let lampBx, lampBy, lampBz;
+
+// ── Irradiance caches [nLamps][nPoints] ──
+let irrECache, irrSCache;
+let totalE, totalS; // summed irradiance per point
+
+// ── GPU state ──
+let useGPU = false;
+let gpuDevice, gpuQueue;
+let benefitPipeline, safetyPipeline;
+let lampUniformBuf, paramUniformBuf;
+let evalPointsBuf, safetyPointsBuf, beamBuf, thetaBuf, barriersBuf;
+let benefitOutputBuf, safetyOutputBuf;
+let benefitReadBuf, safetyReadBuf;
+let benefitBindGroup, safetyBindGroup;
+
+async function initGPU() {
+  try {
+    if (!navigator.gpu) return false;
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return false;
+    gpuDevice = await adapter.requestDevice();
+    gpuQueue = gpuDevice.queue;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function createGPUBuffers() {
+  // Lamp uniform: lx, ly, bx, by, bz, pad, pad, pad = 8 floats = 32 bytes
+  lampUniformBuf = gpuDevice.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+  // Params uniform: mountH, ft2m, nBarriers, nPoints, safetyHeight, fovHalfRad, pad, pad = 8 floats
+  paramUniformBuf = gpuDevice.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const fovHalfRad = EYE_FOV_VERT_DEG / 2 * Math.PI / 180;
+  const paramData = new Float32Array([cfg.mountHeight, FT2M, nBarriers, nEval, cfg.safetyHeight || 5.9, fovHalfRad, 0, 0]);
+  // nPoints will be overwritten per dispatch, but nBarriers and constants stay the same
+  gpuQueue.writeBuffer(paramUniformBuf, 0, paramData);
+
+  // Eval points: vec4(x, y, h, w) per point
+  const evalData = new Float32Array(nEval * 4);
+  for (let i = 0; i < nEval; i++) {
+    evalData[i*4] = evalPts[i].x; evalData[i*4+1] = evalPts[i].y;
+    evalData[i*4+2] = evalPts[i].h; evalData[i*4+3] = evalPts[i].w;
+  }
+  evalPointsBuf = gpuDevice.createBuffer({ size: evalData.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(evalPointsBuf.getMappedRange()).set(evalData);
+  evalPointsBuf.unmap();
+
+  // Safety points: vec4(x, y, h, pad) per point
+  const safData = new Float32Array(nSafety * 4);
+  for (let i = 0; i < nSafety; i++) {
+    safData[i*4] = safetyPts[i].x; safData[i*4+1] = safetyPts[i].y;
+    safData[i*4+2] = safetyPts[i].h; safData[i*4+3] = 0;
+  }
+  safetyPointsBuf = gpuDevice.createBuffer({ size: safData.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(safetyPointsBuf.getMappedRange()).set(safData);
+  safetyPointsBuf.unmap();
+
+  // Beam tables
+  const beamData = new Float32Array(BEAM_I_MWSR);
+  beamBuf = gpuDevice.createBuffer({ size: beamData.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(beamBuf.getMappedRange()).set(beamData);
+  beamBuf.unmap();
+
+  const thetaData = new Float32Array(BEAM_THETA_DEG.map(d => d * Math.PI / 180));
+  thetaBuf = gpuDevice.createBuffer({ size: thetaData.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(thetaBuf.getMappedRange()).set(thetaData);
+  thetaBuf.unmap();
+
+  // Barriers: vec4(x1, y1, x2, y2) per barrier, minimum 16 bytes
+  const nBarAlloc = Math.max(nBarriers, 1);
+  const barData = new Float32Array(nBarAlloc * 4);
+  for (let i = 0; i < nBarriers; i++) {
+    barData[i*4] = barrierData[i].x1; barData[i*4+1] = barrierData[i].y1;
+    barData[i*4+2] = barrierData[i].x2; barData[i*4+3] = barrierData[i].y2;
+  }
+  barriersBuf = gpuDevice.createBuffer({ size: barData.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(barriersBuf.getMappedRange()).set(barData);
+  barriersBuf.unmap();
+
+  // Output buffers
+  const evalOutSize = nEval * 4;
+  const safOutSize = nSafety * 4;
+  benefitOutputBuf = gpuDevice.createBuffer({ size: evalOutSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+  safetyOutputBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+  benefitReadBuf = gpuDevice.createBuffer({ size: evalOutSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+  safetyReadBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+}
+
+function createGPUPipelines() {
+  const shaderCode = \`
+struct LampParams {
+  lx: f32, ly: f32,
+  bx: f32, by: f32, bz: f32,
+  pad0: f32, pad1: f32, pad2: f32,
+};
+struct SimParams {
+  mountH: f32, ft2m: f32,
+  nBarriers: f32, nPoints: f32,
+  safetyHeight: f32, fovHalfRad: f32,
+  pad0: f32, pad1: f32,
+};
+
+@group(0) @binding(0) var<uniform> lamp: LampParams;
+@group(0) @binding(1) var<uniform> params: SimParams;
+@group(0) @binding(2) var<storage, read> points: array<vec4<f32>>;
+@group(0) @binding(3) var<storage, read> beam_i: array<f32>;
+@group(0) @binding(4) var<storage, read> beam_theta: array<f32>;
+@group(0) @binding(5) var<storage, read> barriers: array<vec4<f32>>;
+@group(0) @binding(6) var<storage, read_write> output: array<f32>;
+
+const PI: f32 = 3.14159265359;
+const THETA_STEP: f32 = 0.0872664626; // 5 deg in rad
+
+fn seg_intersect(ax1: f32, ay1: f32, ax2: f32, ay2: f32,
+                 bx1: f32, by1: f32, bx2: f32, by2: f32) -> bool {
+  let dx = ax2 - ax1; let dy = ay2 - ay1;
+  let ex = bx2 - bx1; let ey = by2 - by1;
+  let denom = dx * ey - dy * ex;
+  if (abs(denom) < 1e-12) { return false; }
+  let t = ((bx1 - ax1) * ey - (by1 - ay1) * ex) / denom;
+  let u = ((bx1 - ax1) * dy - (by1 - ay1) * dx) / denom;
+  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999;
+}
+
+fn beam_interp(theta: f32) -> f32 {
+  if (theta <= 0.0) { return beam_i[0]; }
+  if (theta >= PI * 0.5) { return 0.0; }
+  let fi = theta / THETA_STEP;
+  let i0 = min(u32(fi), 17u);
+  let frac = fi - f32(i0);
+  return beam_i[i0] * (1.0 - frac) + beam_i[i0 + 1u] * frac;
+}
+
+fn compute_irr(idx: u32, is_safety: bool) -> f32 {
+  let pt = points[idx];
+  let px = pt.x; let py = pt.y; let ph = pt.z;
+  let vx = px - lamp.lx; let vy = py - lamp.ly; let vz = ph - params.mountH;
+  let d2 = vx*vx + vy*vy + vz*vz;
+  let d = max(sqrt(d2), 0.1);
+  let dm = d * params.ft2m;
+  let ct = clamp((vx*lamp.bx + vy*lamp.by + vz*lamp.bz) / d, -1.0, 1.0);
+  if (ct < 0.0) { return 0.0; }
+  let theta = acos(ct);
+  let I = beam_interp(theta);
+  if (I <= 0.0) { return 0.0; }
+  // Barrier check
+  let nb = u32(params.nBarriers);
+  for (var b = 0u; b < nb; b = b + 1u) {
+    let bar = barriers[b];
+    if (seg_intersect(lamp.lx, lamp.ly, px, py, bar.x, bar.y, bar.z, bar.w)) {
+      return 0.0;
+    }
+  }
+  var E = 0.1 * I / (dm * dm);
+  if (is_safety) {
+    let thetaVert = acos(clamp((params.mountH - ph) / d, -1.0, 1.0));
+    if (thetaVert < (PI * 0.5 - params.fovHalfRad) || thetaVert > (PI * 0.5 + params.fovHalfRad)) {
+      return 0.0;
+    }
+    E = E * sin(thetaVert);
+  }
+  return E;
+}
+
+@compute @workgroup_size(64)
+fn irr_benefit(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let idx = gid.x;
+  if (idx >= u32(params.nPoints)) { return; }
+  output[idx] = compute_irr(idx, false);
+}
+
+@compute @workgroup_size(64)
+fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let idx = gid.x;
+  if (idx >= u32(params.nPoints)) { return; }
+  output[idx] = compute_irr(idx, true);
+}
+\`;
+
+  const shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
+
+  const bindGroupLayout = gpuDevice.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+    ]
+  });
+
+  const pipelineLayout = gpuDevice.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+
+  benefitPipeline = gpuDevice.createComputePipeline({
+    layout: pipelineLayout,
+    compute: { module: shaderModule, entryPoint: 'irr_benefit' }
+  });
+  safetyPipeline = gpuDevice.createComputePipeline({
+    layout: pipelineLayout,
+    compute: { module: shaderModule, entryPoint: 'irr_safety' }
+  });
+
+  // Bind groups
+  benefitBindGroup = gpuDevice.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: lampUniformBuf } },
+      { binding: 1, resource: { buffer: paramUniformBuf } },
+      { binding: 2, resource: { buffer: evalPointsBuf } },
+      { binding: 3, resource: { buffer: beamBuf } },
+      { binding: 4, resource: { buffer: thetaBuf } },
+      { binding: 5, resource: { buffer: barriersBuf } },
+      { binding: 6, resource: { buffer: benefitOutputBuf } },
+    ]
+  });
+  safetyBindGroup = gpuDevice.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: lampUniformBuf } },
+      { binding: 1, resource: { buffer: paramUniformBuf } },
+      { binding: 2, resource: { buffer: safetyPointsBuf } },
+      { binding: 3, resource: { buffer: beamBuf } },
+      { binding: 4, resource: { buffer: thetaBuf } },
+      { binding: 5, resource: { buffer: barriersBuf } },
+      { binding: 6, resource: { buffer: safetyOutputBuf } },
+    ]
+  });
+}
+
+async function gpuComputeLamp(li) {
+  // Write lamp params
+  const aimRad = ((lampAim[li] + 270) % 360) * Math.PI / 180;
+  const tiltRad = lampTilt[li] * Math.PI / 180;
+  const bx = Math.cos(aimRad) * Math.cos(tiltRad);
+  const by = Math.sin(aimRad) * Math.cos(tiltRad);
+  const bz = -Math.sin(tiltRad);
+  const lampData = new Float32Array([lampX[li], lampY[li], bx, by, bz, 0, 0, 0]);
+  gpuQueue.writeBuffer(lampUniformBuf, 0, lampData);
+
+  // Update nPoints for benefit
+  const fovHalfRad = EYE_FOV_VERT_DEG / 2 * Math.PI / 180;
+  const paramDataE = new Float32Array([cfg.mountHeight, FT2M, nBarriers, nEval, cfg.safetyHeight || 5.9, fovHalfRad, 0, 0]);
+  gpuQueue.writeBuffer(paramUniformBuf, 0, paramDataE);
+
+  const wgE = Math.ceil(nEval / 64);
+  const wgS = Math.ceil(nSafety / 64);
+
+  // Dispatch benefit
+  let encoder = gpuDevice.createCommandEncoder();
+  let pass = encoder.beginComputePass();
+  pass.setPipeline(benefitPipeline);
+  pass.setBindGroup(0, benefitBindGroup);
+  pass.dispatchWorkgroups(wgE);
+  pass.end();
+  encoder.copyBufferToBuffer(benefitOutputBuf, 0, benefitReadBuf, 0, nEval * 4);
+  gpuQueue.submit([encoder.finish()]);
+
+  // Dispatch safety
+  const paramDataS = new Float32Array([cfg.mountHeight, FT2M, nBarriers, nSafety, cfg.safetyHeight || 5.9, fovHalfRad, 0, 0]);
+  gpuQueue.writeBuffer(paramUniformBuf, 0, paramDataS);
+  encoder = gpuDevice.createCommandEncoder();
+  pass = encoder.beginComputePass();
+  pass.setPipeline(safetyPipeline);
+  pass.setBindGroup(0, safetyBindGroup);
+  pass.dispatchWorkgroups(wgS);
+  pass.end();
+  encoder.copyBufferToBuffer(safetyOutputBuf, 0, safetyReadBuf, 0, nSafety * 4);
+  gpuQueue.submit([encoder.finish()]);
+
+  // Read back both
+  await benefitReadBuf.mapAsync(GPUMapMode.READ);
+  const eResult = new Float32Array(benefitReadBuf.getMappedRange().slice(0));
+  benefitReadBuf.unmap();
+
+  await safetyReadBuf.mapAsync(GPUMapMode.READ);
+  const sResult = new Float32Array(safetyReadBuf.getMappedRange().slice(0));
+  safetyReadBuf.unmap();
+
+  return { evalIrr: eResult, safetyIrr: sResult };
+}
+
+// ── CPU fallback ──
+function cpuBeamInterp(theta) {
+  if (theta <= 0) return BEAM_I_MWSR[0];
+  if (theta >= Math.PI / 2) return 0;
+  const fi = theta / THETA_STEP_RAD;
+  const i0 = Math.min(Math.floor(fi), 17);
+  const frac = fi - i0;
+  return BEAM_I_MWSR[i0] * (1 - frac) + BEAM_I_MWSR[i0 + 1] * frac;
+}
+
+function cpuSegIntersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) {
+  const dx = ax2 - ax1, dy = ay2 - ay1;
+  const ex = bx2 - bx1, ey = by2 - by1;
+  const denom = dx * ey - dy * ex;
+  if (Math.abs(denom) < 1e-12) return false;
+  const t = ((bx1 - ax1) * ey - (by1 - ay1) * ex) / denom;
+  const u = ((bx1 - ax1) * dy - (by1 - ay1) * dx) / denom;
+  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999;
+}
+
+function cpuComputeLamp(li) {
+  const lx = lampX[li], ly = lampY[li];
+  const aimRad = ((lampAim[li] + 270) % 360) * Math.PI / 180;
+  const tiltRad = lampTilt[li] * Math.PI / 180;
+  const bx = Math.cos(aimRad) * Math.cos(tiltRad);
+  const by = Math.sin(aimRad) * Math.cos(tiltRad);
+  const bz = -Math.sin(tiltRad);
+  const mountH = cfg.mountHeight;
+  const fovHalfRad = EYE_FOV_VERT_DEG / 2 * Math.PI / 180;
+
+  const evalIrr = new Float32Array(nEval);
+  for (let i = 0; i < nEval; i++) {
+    const pt = evalPts[i];
+    const vx = pt.x - lx, vy = pt.y - ly, vz = pt.h - mountH;
+    const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
+    const dm = d * FT2M;
+    const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
+    if (ct < 0) continue;
+    const theta = Math.acos(ct);
+    const I = cpuBeamInterp(theta);
+    if (I <= 0) continue;
+    let blocked = false;
+    for (let b = 0; b < nBarriers; b++) {
+      if (cpuSegIntersect(lx, ly, pt.x, pt.y, barrierData[b].x1, barrierData[b].y1, barrierData[b].x2, barrierData[b].y2)) {
+        blocked = true; break;
+      }
+    }
+    if (blocked) continue;
+    evalIrr[i] = 0.1 * I / (dm * dm);
+  }
+
+  const safetyIrr = new Float32Array(nSafety);
+  for (let i = 0; i < nSafety; i++) {
+    const pt = safetyPts[i];
+    const vx = pt.x - lx, vy = pt.y - ly, vz = pt.h - mountH;
+    const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
+    const dm = d * FT2M;
+    const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
+    if (ct < 0) continue;
+    const theta = Math.acos(ct);
+    const I = cpuBeamInterp(theta);
+    if (I <= 0) continue;
+    let blocked = false;
+    for (let b = 0; b < nBarriers; b++) {
+      if (cpuSegIntersect(lx, ly, pt.x, pt.y, barrierData[b].x1, barrierData[b].y1, barrierData[b].x2, barrierData[b].y2)) {
+        blocked = true; break;
+      }
+    }
+    if (blocked) continue;
+    let E = 0.1 * I / (dm * dm);
+    const thetaVert = Math.acos(Math.max(Math.min((mountH - pt.h) / d, 1), -1));
+    if (thetaVert < (Math.PI / 2 - fovHalfRad) || thetaVert > (Math.PI / 2 + fovHalfRad)) continue;
+    E *= Math.sin(thetaVert);
+    safetyIrr[i] = E;
+  }
+
+  return { evalIrr, safetyIrr };
+}
+
+// ── Scoring ──
+function computeScore(safetyPW) {
+  let benefit = 0, floorPen = 0, safetyPen = 0;
+  for (let i = 0; i < nEval; i++) {
+    const w = evalPts[i].w;
+    const irr = totalE[i];
+    benefit += w * Math.min(irr, BENEFIT_CAP);
+    if (irr < MIN_IRRADIANCE) {
+      const gap = MIN_IRRADIANCE - irr;
+      floorPen += MIN_IRR_PENALTY_WEIGHT * w * gap * gap;
+    }
+  }
+  for (let i = 0; i < nSafety; i++) {
+    const over = totalS[i] - cfg.threshold;
+    if (over > 0) safetyPen += over;
+  }
+  return { score: benefit - safetyPW * safetyPen - floorPen, benefit, safetyPen, floorPen };
+}
+
+// ── Lamp spacing check ──
+function checkSpacing(li) {
+  for (let j = 0; j < nLamps; j++) {
+    if (j === li) continue;
+    const dx = lampX[li] - lampX[j], dy = lampY[li] - lampY[j];
+    if (dx*dx + dy*dy < MIN_LAMP_SPACING * MIN_LAMP_SPACING) return false;
+  }
+  return true;
+}
+
+// ── Initialize lamps ──
+function initLamps() {
+  lampX = new Float32Array(nLamps);
+  lampY = new Float32Array(nLamps);
+  lampAim = new Float32Array(nLamps);
+  lampTilt = new Float32Array(nLamps);
+  lampBx = new Float32Array(nLamps);
+  lampBy = new Float32Array(nLamps);
+  lampBz = new Float32Array(nLamps);
+
+  const roomW = cfg.roomWidth, roomD = cfg.roomDepth;
+  const mounting = cfg.mounting;
+
+  for (let i = 0; i < nLamps; i++) {
+    let placed = false;
+    for (let tries = 0; tries < 200; tries++) {
+      if (mounting === 'wall') {
+        // Place on walls / ceiling edges
+        const side = randInt(4);
+        if (side === 0) { lampX[i] = WALL_INSET; lampY[i] = WALL_INSET + rand() * (roomD - 2*WALL_INSET); lampAim[i] = 90; }
+        else if (side === 1) { lampX[i] = roomW - WALL_INSET; lampY[i] = WALL_INSET + rand() * (roomD - 2*WALL_INSET); lampAim[i] = 270; }
+        else if (side === 2) { lampX[i] = WALL_INSET + rand() * (roomW - 2*WALL_INSET); lampY[i] = WALL_INSET; lampAim[i] = 180; }
+        else { lampX[i] = WALL_INSET + rand() * (roomW - 2*WALL_INSET); lampY[i] = roomD - WALL_INSET; lampAim[i] = 0; }
+      } else {
+        lampX[i] = WALL_INSET + rand() * (roomW - 2 * WALL_INSET);
+        lampY[i] = WALL_INSET + rand() * (roomD - 2 * WALL_INSET);
+        lampAim[i] = AIM_OPTIONS[randInt(8)];
+      }
+      lampTilt[i] = randInt(13); // 0-12
+      if (checkSpacing(i)) { placed = true; break; }
+    }
+    if (!placed) {
+      lampX[i] = WALL_INSET + rand() * (roomW - 2 * WALL_INSET);
+      lampY[i] = WALL_INSET + rand() * (roomD - 2 * WALL_INSET);
+      lampAim[i] = AIM_OPTIONS[randInt(8)];
+      lampTilt[i] = randInt(13);
+    }
+    updateBeamVec(i);
+  }
+}
+
+function updateBeamVec(li) {
+  const aimRad = ((lampAim[li] + 270) % 360) * Math.PI / 180;
+  const tiltRad = lampTilt[li] * Math.PI / 180;
+  lampBx[li] = Math.cos(aimRad) * Math.cos(tiltRad);
+  lampBy[li] = Math.sin(aimRad) * Math.cos(tiltRad);
+  lampBz[li] = -Math.sin(tiltRad);
+}
+
+// ── Build full caches ──
+async function buildFullCaches() {
+  irrECache = new Array(nLamps);
+  irrSCache = new Array(nLamps);
+  totalE = new Float32Array(nEval);
+  totalS = new Float32Array(nSafety);
+
+  for (let li = 0; li < nLamps; li++) {
+    let result;
+    if (useGPU) {
+      result = await gpuComputeLamp(li);
+    } else {
+      result = cpuComputeLamp(li);
+    }
+    irrECache[li] = result.evalIrr;
+    irrSCache[li] = result.safetyIrr;
+    for (let i = 0; i < nEval; i++) totalE[i] += result.evalIrr[i];
+    for (let i = 0; i < nSafety; i++) totalS[i] += result.safetyIrr[i];
+  }
+}
+
+// ── SA main loop ──
+async function runSA() {
+  const iterations = cfg.iterations;
+  const initialTemp = 2.0;
+  const cooling = Math.exp(Math.log(0.005 / initialTemp) / iterations);
+  let temp = initialTemp;
+  const roomW = cfg.roomWidth, roomD = cfg.roomDepth;
+
+  // Initial score with annealing penalty
+  let safetyPW = 3.0 / Math.max(temp / initialTemp, 0.01);
+  let cur = computeScore(safetyPW);
+  let curScore = cur.score;
+
+  // Best tracking with final penalty
+  let bestFinal = computeScore(SAFETY_PENALTY_FINAL);
+  let bestScore = bestFinal.score;
+  let bestLamps = extractLamps();
+  let bestBenefit = bestFinal.benefit;
+  let bestSafetyPen = bestFinal.safetyPen;
+  let bestFloorPen = bestFinal.floorPen;
+
+  for (let step = 0; step < iterations; step++) {
+    // Check for stop signal
+    if (step % 1000 === 0 && shouldStop) break;
+
+    temp *= cooling;
+    const tf = Math.max(temp / initialTemp, 0.01);
+    safetyPW = 3.0 / tf;
+
+    // Pick random lamp to perturb
+    const li = randInt(nLamps);
+    const oldX = lampX[li], oldY = lampY[li], oldAim = lampAim[li], oldTilt = lampTilt[li];
+    const oldECache = irrECache[li];
+    const oldSCache = irrSCache[li];
+
+    // Perturb
+    const r = rand();
+    if (r < 0.4) {
+      // Position
+      if (cfg.mounting === 'wall') {
+        // Perturb along the wall the lamp is on
+        const onWestWall = Math.abs(lampX[li] - WALL_INSET) < 0.5;
+        const onEastWall = Math.abs(lampX[li] - (roomW - WALL_INSET)) < 0.5;
+        const onNorthWall = Math.abs(lampY[li] - WALL_INSET) < 0.5;
+        const onSouthWall = Math.abs(lampY[li] - (roomD - WALL_INSET)) < 0.5;
+        if (rand() < 0.15) {
+          // Switch to a different wall
+          const side = randInt(4);
+          if (side === 0) { lampX[li] = WALL_INSET; lampY[li] = WALL_INSET + rand() * (roomD - 2*WALL_INSET); lampAim[li] = 90; }
+          else if (side === 1) { lampX[li] = roomW - WALL_INSET; lampY[li] = WALL_INSET + rand() * (roomD - 2*WALL_INSET); lampAim[li] = 270; }
+          else if (side === 2) { lampX[li] = WALL_INSET + rand() * (roomW - 2*WALL_INSET); lampY[li] = WALL_INSET; lampAim[li] = 180; }
+          else { lampX[li] = WALL_INSET + rand() * (roomW - 2*WALL_INSET); lampY[li] = roomD - WALL_INSET; lampAim[li] = 0; }
+        } else if (onWestWall || onEastWall) {
+          lampY[li] = Math.max(WALL_INSET, Math.min(roomD - WALL_INSET, lampY[li] + randNorm() * 3 * tf));
+        } else {
+          lampX[li] = Math.max(WALL_INSET, Math.min(roomW - WALL_INSET, lampX[li] + randNorm() * 3 * tf));
+        }
+      } else {
+        lampX[li] = Math.max(WALL_INSET, Math.min(roomW - WALL_INSET, lampX[li] + randNorm() * 3 * tf));
+        lampY[li] = Math.max(WALL_INSET, Math.min(roomD - WALL_INSET, lampY[li] + randNorm() * 3 * tf));
+      }
+    } else if (r < 0.7) {
+      // Aim
+      if (cfg.mounting === 'wall') {
+        // For wall mounting, only allow aims away from the wall (within 90 degrees of outward normal)
+        // We keep the current aim but might tweak it
+        lampAim[li] = (lampAim[li] + randNorm() * 15 * tf + 360) % 360;
+      } else if (rand() < 0.5) {
+        lampAim[li] = (lampAim[li] + randNorm() * 15 * tf + 360) % 360;
+      } else {
+        lampAim[li] = AIM_OPTIONS[randInt(8)];
+      }
+    } else {
+      // Tilt
+      lampTilt[li] = Math.max(0, Math.min(12, Math.round(lampTilt[li] + randNorm() * 5 * tf)));
+    }
+
+    // Check spacing
+    if (!checkSpacing(li)) {
+      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt;
+      continue;
+    }
+
+    updateBeamVec(li);
+
+    // Compute new irradiance for this lamp
+    let result;
+    if (useGPU) {
+      result = await gpuComputeLamp(li);
+    } else {
+      result = cpuComputeLamp(li);
+    }
+
+    // Incremental update: trial totals
+    const newECache = result.evalIrr;
+    const newSCache = result.safetyIrr;
+
+    // Update totals temporarily
+    for (let i = 0; i < nEval; i++) totalE[i] += newECache[i] - oldECache[i];
+    for (let i = 0; i < nSafety; i++) totalS[i] += newSCache[i] - oldSCache[i];
+
+    const trial = computeScore(safetyPW);
+
+    const delta = trial.score - curScore;
+    if (delta > 0 || rand() < Math.exp(delta / Math.max(temp, 1e-10))) {
+      // Accept
+      curScore = trial.score;
+      irrECache[li] = newECache;
+      irrSCache[li] = newSCache;
+
+      // Check if new best (using final penalty)
+      const finalTrial = computeScore(SAFETY_PENALTY_FINAL);
+      if (finalTrial.score > bestScore) {
+        bestScore = finalTrial.score;
+        bestLamps = extractLamps();
+        bestBenefit = finalTrial.benefit;
+        bestSafetyPen = finalTrial.safetyPen;
+        bestFloorPen = finalTrial.floorPen;
+      }
+    } else {
+      // Reject: revert totals
+      for (let i = 0; i < nEval; i++) totalE[i] += oldECache[i] - newECache[i];
+      for (let i = 0; i < nSafety; i++) totalS[i] += oldSCache[i] - newSCache[i];
+      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt;
+      updateBeamVec(li);
+    }
+
+    // Progress report every 5000 steps
+    if ((step + 1) % 5000 === 0) {
+      postMessage({
+        type: 'progress',
+        step: step + 1,
+        iterations,
+        bestScore,
+        lamps: bestLamps,
+        benefit: bestBenefit,
+        safetyPen: bestSafetyPen,
+        floorPen: bestFloorPen,
+        temp,
+      });
+    }
+  }
+
+  // Final result
+  postMessage({
+    type: 'done',
+    bestScore,
+    lamps: bestLamps,
+    benefit: bestBenefit,
+    safetyPen: bestSafetyPen,
+    floorPen: bestFloorPen,
+  });
+}
+
+function extractLamps() {
+  const lamps = [];
+  for (let i = 0; i < nLamps; i++) {
+    lamps.push({ x: lampX[i], y: lampY[i], aim: lampAim[i], tilt: lampTilt[i] });
+  }
+  return lamps;
+}
+
+let shouldStop = false;
+
+self.onmessage = async function(e) {
+  const msg = e.data;
+  if (msg.type === 'stop') {
+    shouldStop = true;
+    return;
+  }
+  if (msg.type !== 'start') return;
+
+  cfg = msg.config;
+  nLamps = cfg.numLamps;
+  evalPts = cfg.evalPoints;
+  safetyPts = cfg.safetyPoints;
+  barrierData = cfg.barriers;
+  nEval = evalPts.length;
+  nSafety = safetyPts.length;
+  nBarriers = barrierData.length;
+
+  initRNG(msg.seed);
+
+  // Try GPU
+  useGPU = await initGPU();
+  if (useGPU) {
+    try {
+      createGPUBuffers();
+      createGPUPipelines();
+      postMessage({ type: 'status', gpu: true });
+    } catch (err) {
+      useGPU = false;
+      postMessage({ type: 'status', gpu: false, error: err.message });
+    }
+  } else {
+    postMessage({ type: 'status', gpu: false });
+  }
+
+  // Initialize lamps and caches
+  initLamps();
+  await buildFullCaches();
+
+  // Run SA
+  await runSA();
+};
+`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Optimizer state
+// ════════════════════════════════════════════════════════════════════
+
+let workers = [];
+let optimizerRunning = false;
+let optimizerStartTime = 0;
+let elapsedTimer = null;
+let chainResults = [];
+let chainProgress = [];
+
+// ════════════════════════════════════════════════════════════════════
+// Start optimizer
+// ════════════════════════════════════════════════════════════════════
+
+startBtn.addEventListener('click', () => {
+  if (optimizerRunning) return;
+
+  const hours = parseInt(tlvHoursInput.value);
+  const { tlv_uwcm2, threshold } = computeTLV(hours);
+  const points = generatePoints();
+  const probes = generateSafetyProbes();
+  const mounting = document.querySelector('input[name="mounting"]:checked').value;
+  const numLamps = parseInt(numLampsInput.value);
+  const iterations = parseInt(iterationsInput.value);
+  const numChains = parseInt(chainsInput.value);
+
+  const config = {
+    roomWidth: getRoomW(),
+    roomDepth: getRoomD(),
+    ceilingHeight: getCeilH(),
+    mountHeight: getMountH(),
+    numLamps,
+    tlvHours: hours,
+    tlv_uwcm2,
+    threshold,
+    iterations,
+    mounting,
+    safetyHeight: SAFETY_HEIGHT,
+    evalPoints: points,
+    safetyPoints: probes,
+    barriers: [...barriers],
+  };
+
+  console.log('Starting optimizer:', numChains, 'chains x', iterations.toLocaleString(), 'iterations');
+  console.log('Eval points:', points.length, '| Safety probes:', probes.length);
+
+  // Show progress area
+  const progressArea = document.getElementById('progressArea');
+  progressArea.style.display = 'block';
+  document.getElementById('resultsArea').style.display = 'none';
+  startBtn.disabled = true;
+  startBtn.textContent = 'Running...';
+  optimizerRunning = true;
+  optimizerStartTime = Date.now();
+  bestResult = null;
+  chainResults = new Array(numChains).fill(null);
+  chainProgress = new Array(numChains).fill(0);
+
+  // Build progress bars
+  const barsEl = document.getElementById('progressBars');
+  barsEl.innerHTML = '';
+  for (let i = 0; i < numChains; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'progress-bar-wrap';
+    wrap.innerHTML = `
+      <span class="progress-bar-label">Chain ${i + 1}</span>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="pbar${i}"></div></div>
+      <span class="progress-pct" id="ppct${i}">0%</span>
+      <span class="progress-score" id="pscore${i}">&mdash;</span>
+    `;
+    barsEl.appendChild(wrap);
+  }
+
+  document.getElementById('bestScore').textContent = '\u2014';
+  document.getElementById('elapsed').textContent = '0:00';
+
+  // Elapsed timer
+  elapsedTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - optimizerStartTime) / 1000);
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    document.getElementById('elapsed').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
+
+  // Create worker blob
+  const workerSource = buildWorkerSource();
+  const blob = new Blob([workerSource], { type: 'application/javascript' });
+  const workerURL = URL.createObjectURL(blob);
+
+  // Launch workers
+  workers = [];
+  let doneCount = 0;
+
+  for (let i = 0; i < numChains; i++) {
+    const worker = new Worker(workerURL);
+    workers.push(worker);
+
+    worker.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.type === 'status') {
+        console.log(`Chain ${i}: GPU=${msg.gpu}${msg.error ? ' ('+msg.error+')' : ''}`);
+      } else if (msg.type === 'progress') {
+        const pct = Math.round(msg.step / msg.iterations * 100);
+        chainProgress[i] = pct;
+        document.getElementById('pbar' + i).style.width = pct + '%';
+        document.getElementById('ppct' + i).textContent = pct + '%';
+        document.getElementById('pscore' + i).textContent = msg.bestScore.toFixed(1);
+
+        // Update best across all chains + highlight leader
+        if (!bestResult || msg.bestScore > bestResult.score) {
+          bestResult = {
+            score: msg.bestScore,
+            lamps: msg.lamps,
+            benefit: msg.benefit,
+            safetyPen: msg.safetyPen,
+            floorPen: msg.floorPen,
+          };
+          document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
+          drawHeatmap();
+        }
+        // Highlight the leading chain's score
+        for (let j = 0; j < numChains; j++) {
+          const el = document.getElementById('pscore' + j);
+          if (el) el.classList.toggle('best-chain', bestResult && el.textContent === bestResult.score.toFixed(1));
+        }
+      } else if (msg.type === 'done') {
+        chainResults[i] = msg;
+        document.getElementById('pbar' + i).style.width = '100%';
+        document.getElementById('ppct' + i).textContent = '100%';
+
+        if (!bestResult || msg.bestScore > bestResult.score) {
+          bestResult = {
+            score: msg.bestScore,
+            lamps: msg.lamps,
+            benefit: msg.benefit,
+            safetyPen: msg.safetyPen,
+            floorPen: msg.floorPen,
+          };
+          document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
+          drawHeatmap();
+        }
+
+        doneCount++;
+        if (doneCount >= numChains) {
+          finishOptimization();
+        }
+      }
+    };
+
+    worker.onerror = (err) => {
+      console.error(`Chain ${i} error:`, err);
+      doneCount++;
+      if (doneCount >= numChains) finishOptimization();
+    };
+
+    // Start the worker
+    const seed = Math.floor(Math.random() * 2147483647) + i * 1000000;
+    worker.postMessage({ type: 'start', config, seed });
+  }
+
+  URL.revokeObjectURL(workerURL);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Stop button
+// ════════════════════════════════════════════════════════════════════
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  if (!optimizerRunning) return;
+  console.log('Stopping optimizer...');
+  for (const w of workers) {
+    w.postMessage({ type: 'stop' });
+  }
+  // Give workers a moment to finish gracefully, then terminate
+  setTimeout(() => {
+    for (const w of workers) w.terminate();
+    finishOptimization();
+  }, 2000);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Finish optimization
+// ════════════════════════════════════════════════════════════════════
+
+function finishOptimization() {
+  if (!optimizerRunning) return;
+  optimizerRunning = false;
+  clearInterval(elapsedTimer);
+  startBtn.disabled = false;
+  startBtn.textContent = '\u25B6 Start Optimization';
+
+  // Final elapsed
+  const secs = Math.floor((Date.now() - optimizerStartTime) / 1000);
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  document.getElementById('elapsed').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+
+  // Terminate workers
+  for (const w of workers) w.terminate();
+  workers = [];
+
+  if (!bestResult) {
+    console.log('No results obtained.');
+    return;
+  }
+
+  // Show results
+  const resultsArea = document.getElementById('resultsArea');
+  resultsArea.style.display = 'block';
+
+  // Score breakdown
+  const hours = parseInt(tlvHoursInput.value);
+  const { threshold } = computeTLV(hours);
+  document.getElementById('scoreBreakdown').innerHTML = `
+    <div class="derived-row"><label data-tip="The overall optimization score. Higher is better. Score = Benefit - Safety Penalty - Floor Penalty.">Final Score</label>: <strong>${bestResult.score.toFixed(2)}</strong></div>
+    <div class="derived-row">
+      <label data-tip="Sum of weighted irradiance at each evaluation probe, capped at 4.0 µW/cm² per probe. Higher means more UV coverage where it matters.">Benefit</label>: <strong>${bestResult.benefit.toFixed(2)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Penalizes configurations where FOV-weighted eye irradiance exceeds the safety threshold at any point. Multiplied by 300× to strongly discourage unsafe placements. Zero means fully compliant.">Safety Penalty</label>: <strong>${bestResult.safetyPen.toFixed(4)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${bestResult.floorPen.toFixed(2)}</strong>
+    </div>
+    <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(bestResult.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
+  `;
+
+  // Lamp table
+  const tbody = document.querySelector('#lampTable tbody');
+  tbody.innerHTML = '';
+  bestResult.lamps.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i + 1}</td><td>${l.x.toFixed(2)}</td><td>${l.y.toFixed(2)}</td><td>${l.aim.toFixed(0)}</td><td>${l.tilt.toFixed(0)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Update Explorer link with lamp config
+  const explorerLink = document.getElementById('explorerLink');
+  const lampsParam = bestResult.lamps.map(l =>
+    `${l.x.toFixed(2)},${l.y.toFixed(2)},${l.aim.toFixed(0)},${l.tilt.toFixed(0)}`
+  ).join(';');
+  const explorerParams = new URLSearchParams({
+    lamps: lampsParam,
+    w: getRoomW(),
+    d: getRoomD(),
+    ch: getCeilH(),
+    mh: getMountH()
+  });
+  explorerLink.href = `uvc-explorer.html?${explorerParams.toString()}`;
+
+  // Final heatmap
+  drawHeatmap();
+
+  // Scroll to results
+  resultsArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Copy config
+// ════════════════════════════════════════════════════════════════════
+
+document.getElementById('copyConfig').addEventListener('click', () => {
+  if (!bestResult || !bestResult.lamps) {
+    navigator.clipboard.writeText('[]');
+    return;
+  }
+  const configOut = bestResult.lamps.map((l, i) => ({
+    id: i + 1,
+    x: parseFloat(l.x.toFixed(2)),
+    y: parseFloat(l.y.toFixed(2)),
+    aim_deg: parseFloat(l.aim.toFixed(0)),
+    tilt_deg: parseFloat(l.tilt.toFixed(0)),
+  }));
+  const json = JSON.stringify(configOut, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    const btn = document.getElementById('copyConfig');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Config'; }, 1500);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Download .guv file
+// ════════════════════════════════════════════════════════════════════
+
+const IES_DATA = `IESNA:LM-63-2002
+[TEST] Lumens-> mW, lux-> mW/m^2, candela-> mW/sr
+[TESTLAB] OSLUV
+[ISSUEDATE] June 11, 2025
+[NEARFIELD] Test distance 50 CM
+[MANUFAC] Apollo Airtech
+[LUMCAT] Aerolamp V1.0 Dev Kit
+[LUMINAIRE] Aerolamp V1.0 Dev Kit
+[LAMP] Aerolamp V1.0 Dev Kit
+[DISTRIBUTION] No assumed symmetry
+[_INTENSITYUNITS] mW/sr
+[_RADIATIONTYPE] UVC 222
+TILT=NONE
+1 -1.0000 1 37 5 1 2 0.0600 0.0450 0.0000
+1.0000 1.0000 12.9000
+0.0000 5.0000 10.0000 15.0000 20.0000 25.0000 30.0000 35.0000 40.0000 45.0000 50.0000 55.0000 60.0000 65.0000 70.0000 75.0000 80.0000 85.0000 90.0000 95.0000 100.0000 105.0000 110.0000 115.0000 120.0000 125.0000 130.0000 135.0000 140.0000 145.0000 150.0000 155.0000 160.0000 165.0000 170.0000 175.0000 180.0000
+0.0000 90.0000 180.0000 270.0000 360.0000
+94.50 93.70 91.80 89.30 85.80 77.00 60.50 34.20 14.00 5.10 2.10 0.90 0.65 0.60 0.40 0.30 0.20 0.10 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+94.50 93.70 91.80 89.30 85.80 77.00 60.50 34.20 14.00 5.10 2.10 0.90 0.65 0.60 0.40 0.30 0.20 0.10 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+94.50 93.70 91.80 89.30 85.80 77.00 60.50 34.20 14.00 5.10 2.10 0.90 0.65 0.60 0.40 0.30 0.20 0.10 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+94.50 93.70 91.80 89.30 85.80 77.00 60.50 34.20 14.00 5.10 2.10 0.90 0.65 0.60 0.40 0.30 0.20 0.10 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+94.50 93.70 91.80 89.30 85.80 77.00 60.50 34.20 14.00 5.10 2.10 0.90 0.65 0.60 0.40 0.30 0.20 0.10 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00`;
+
+function generateGuvFile(lamps) {
+  const roomW = getRoomW();
+  const roomD = getRoomD();
+  const ceilH = getCeilH();
+  const mountH = getMountH();
+  const hours = parseInt(tlvHoursInput.value);
+  const exposureTime = hours * 3600;
+
+  function aimPoint(x, y, z, compassDeg, tiltDeg) {
+    const aimRad = ((compassDeg + 270) % 360) * Math.PI / 180;
+    const tiltRad = tiltDeg * Math.PI / 180;
+    const dist = 10;
+    const dx = dist * Math.cos(aimRad) * Math.cos(tiltRad);
+    const dy = dist * Math.sin(aimRad) * Math.cos(tiltRad);
+    const dz = -dist * Math.sin(tiltRad);
+    return { aimx: x + dx, aimy: y + dy, aimz: z + dz };
+  }
+
+  const lampEntries = {};
+  lamps.forEach((l, i) => {
+    const id = `Lamp_${i + 1}`;
+    const { aimx, aimy, aimz } = aimPoint(l.x, l.y, mountH, l.aim, l.tilt);
+    lampEntries[id] = {
+      lamp_id: id,
+      name: `Lamp ${i + 1}`,
+      x: l.x, y: l.y, z: mountH,
+      angle: 0.0,
+      aimx, aimy, aimz,
+      intensity_units: "mw/sr",
+      guv_type: "krcl",
+      wavelength: 222.0,
+      width: null, length: null, height: null,
+      units: "feet",
+      source_density: 1,
+      scaling_factor: 1.0,
+      intensity_map: null,
+      enabled: true,
+      surface: {
+        width: 0.196850393701,
+        length: 0.147637795276,
+        height: 0.0,
+        units: "feet",
+        source_density: 1,
+        intensity_map: null,
+        _user_width: null, _user_length: null, _user_height: null, _user_units: "feet"
+      },
+      fixture: {
+        housing_width: 0.328083989501,
+        housing_length: 0.387139107612,
+        housing_height: 0.249343832021,
+        shape: "rectangular"
+      },
+      filedata: IES_DATA,
+      ies: null,
+      spectrum: null
+    };
+  });
+
+  function makeSurface(zoneId, origin, spans, uVec, vVec, opts = {}) {
+    return {
+      R: 0.078, T: 0.0,
+      plane: {
+        zone_id: zoneId, name: zoneId,
+        dose: false, exposure_time: exposureTime,
+        enabled: true, show_values: true, colormap: "plasma",
+        geometry: {
+          origin, spans,
+          spacing_init: [spans[0] / 10, spans[1] / 10],
+          u_vec: uVec, v_vec: vVec
+        },
+        fov_vert: opts.fov_vert || 180,
+        fov_horiz: opts.fov_horiz || 360,
+        use_normal: true,
+        vert: opts.vert || false,
+        horiz: opts.horiz !== undefined ? opts.horiz : true,
+        calctype: "Plane"
+      }
+    };
+  }
+
+  const surfaces = {
+    floor:   makeSurface("floor",   [0, 0, 0],         [roomW, roomD], [1,0,0], [0,1,0]),
+    ceiling: makeSurface("ceiling", [0, 0, ceilH],     [roomW, roomD], [1,0,0], [0,1,0]),
+    south:   makeSurface("south",   [0, 0, ceilH],     [roomW, ceilH], [1,0,0], [0,0,-1]),
+    north:   makeSurface("north",   [0, roomD, ceilH], [roomW, ceilH], [1,0,0], [0,0,-1]),
+    west:    makeSurface("west",    [0, 0, 0],         [roomD, ceilH], [0,1,0], [0,0,1]),
+    east:    makeSurface("east",    [roomW, 0, 0],     [roomD, ceilH], [0,1,0], [0,0,1])
+  };
+
+  return {
+    "guv-calcs_version": "0.6.5",
+    timestamp: new Date().toISOString().split('T')[0] + ` (optimizer ${lamps.length}-lamp)`,
+    format: "project",
+    data: {
+      standard: "ANSI IES RP 27.1-22 (ACGIH Limits)",
+      units: "meters",
+      precision: 1,
+      colormap: "plasma",
+      on_collision: "increment",
+      enable_reflectance: false,
+      reflectance_max_num_passes: 100,
+      reflectance_threshold: 0.02,
+      rooms: {
+        Room: {
+          room_id: "Room",
+          name: `Optimized ${lamps.length}-lamp configuration`,
+          x: roomW, y: roomD, z: ceilH,
+          units: "feet",
+          enable_reflectance: true,
+          reflectance_max_num_passes: 100,
+          reflectance_threshold: 0.02,
+          standard: "acgih",
+          air_changes: 1.0,
+          ozone_decay_constant: 2.7,
+          precision: 1,
+          on_collision: "increment",
+          colormap: "plasma",
+          surfaces,
+          lamps: lampEntries,
+          calc_zones: {},
+          zone_groups: {},
+          volumes: {},
+          calc_volumes: {}
+        }
+      }
+    }
+  };
+}
+
+document.getElementById('downloadGuv').addEventListener('click', () => {
+  if (!bestResult || !bestResult.lamps) return;
+  const guv = generateGuvFile(bestResult.lamps);
+  const json = JSON.stringify(guv, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${bestResult.lamps.length}-lamps.guv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Window resize
+// ════════════════════════════════════════════════════════════════════
+
+window.addEventListener('resize', refresh);
+
+// ════════════════════════════════════════════════════════════════════
+// GeoJSON Import / Export
+// ════════════════════════════════════════════════════════════════════
+
+function toGeoJSON() {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const features = [];
+
+  // Room outline
+  features.push({
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[[0,0],[roomW,0],[roomW,roomD],[0,roomD],[0,0]]]
+    },
+    properties: { featureType: 'room' }
+  });
+
+  // Barriers
+  for (const b of barriers) {
+    features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [[b.x1, b.y1], [b.x2, b.y2]]
+      },
+      properties: { featureType: 'barrier' }
+    });
+  }
+
+  // Priority areas
+  for (const a of areas) {
+    features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[a.x,a.y],[a.x+a.w,a.y],[a.x+a.w,a.y+a.h],[a.x,a.y+a.h],[a.x,a.y]]]
+      },
+      properties: {
+        featureType: 'priorityArea',
+        category: a.category,
+        seating: a.seating || 'inside',
+        weight: a.weight != null ? a.weight : CATEGORIES[a.category]?.weight
+      }
+    });
+  }
+
+  return {
+    type: 'FeatureCollection',
+    properties: {
+      name: 'UVC Room Configuration',
+      units: 'feet',
+      ceilingHeight: getCeilH(),
+      mountHeight: getMountH()
+    },
+    features
+  };
+}
+
+function fromGeoJSON(geojson) {
+  const gc = typeof geojson === 'string' ? JSON.parse(geojson) : geojson;
+  if (gc.type !== 'FeatureCollection' || !gc.features) {
+    throw new Error('Invalid GeoJSON: expected a FeatureCollection');
+  }
+
+  // Extract room dimensions from the room polygon
+  const roomFeature = gc.features.find(f => f.properties?.featureType === 'room');
+  if (roomFeature && roomFeature.geometry.type === 'Polygon') {
+    const coords = roomFeature.geometry.coordinates[0];
+    const xs = coords.map(c => c[0]), ys = coords.map(c => c[1]);
+    const w = Math.max(...xs) - Math.min(...xs);
+    const d = Math.max(...ys) - Math.min(...ys);
+    roomWInput.value = w;
+    roomDInput.value = d;
+  }
+
+  // Extract heights from collection properties
+  if (gc.properties) {
+    if (gc.properties.ceilingHeight) ceilHInput.value = gc.properties.ceilingHeight;
+    if (gc.properties.mountHeight) mountHInput.value = gc.properties.mountHeight;
+  }
+
+  // Extract barriers
+  barriers.length = 0;
+  for (const f of gc.features) {
+    if (f.properties?.featureType === 'barrier' && f.geometry.type === 'LineString') {
+      const c = f.geometry.coordinates;
+      if (c.length >= 2) {
+        barriers.push({ x1: c[0][0], y1: c[0][1], x2: c[1][0], y2: c[1][1] });
+      }
+    }
+  }
+
+  // Extract priority areas
+  areas.length = 0;
+  for (const f of gc.features) {
+    if (f.properties?.featureType === 'priorityArea' && f.geometry.type === 'Polygon') {
+      const coords = f.geometry.coordinates[0];
+      const xs = coords.map(c => c[0]), ys = coords.map(c => c[1]);
+      const x = Math.min(...xs), y = Math.min(...ys);
+      const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+      const category = f.properties.category || 'desk';
+      const seating = f.properties.seating || 'inside';
+      const weight = f.properties.weight != null ? f.properties.weight : CATEGORIES[category]?.weight;
+      if (CATEGORIES[category]) {
+        areas.push({ x, y, w, h, category, seating, weight });
+      }
+    }
+  }
+
+  refresh();
+}
+
+const ioStatus = document.getElementById('ioStatus');
+function showIOStatus(msg) {
+  ioStatus.textContent = msg;
+  setTimeout(() => { ioStatus.textContent = ''; }, 3000);
+}
+
+document.getElementById('exportGeoJSON').addEventListener('click', () => {
+  const json = JSON.stringify(toGeoJSON(), null, 2);
+  const blob = new Blob([json], { type: 'application/geo+json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'uvc-room.geojson';
+  a.click();
+  URL.revokeObjectURL(url);
+  showIOStatus('Exported uvc-room.geojson');
+});
+
+document.getElementById('copyGeoJSON').addEventListener('click', () => {
+  const json = JSON.stringify(toGeoJSON(), null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    showIOStatus('Copied to clipboard');
+  });
+});
+
+document.getElementById('importGeoJSON').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      fromGeoJSON(reader.result);
+      showIOStatus('Imported ' + file.name);
+    } catch (err) {
+      showIOStatus('Error: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // allow re-importing same file
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Init
+// ════════════════════════════════════════════════════════════════════
+
+refresh();
+
+// ════════════════════════════════════════════════════════════════════
+// Step indicator: IntersectionObserver + click-to-scroll
+// ════════════════════════════════════════════════════════════════════
+
+(function() {
+  const cards = document.querySelectorAll('.container > .card');
+  const stepItems = document.querySelectorAll('.step-item');
+  const connectors = document.querySelectorAll('.step-connector');
+  let currentStep = 0;
+
+  function setActiveStep(idx) {
+    if (idx === currentStep) return;
+    currentStep = idx;
+    stepItems.forEach((item, i) => {
+      item.classList.remove('active', 'completed');
+      if (i === idx) item.classList.add('active');
+      else if (i < idx) item.classList.add('completed');
+    });
+    connectors.forEach((conn, i) => {
+      conn.classList.toggle('completed', i < idx);
+    });
+  }
+
+  // Observe cards
+  const navHeight = document.getElementById('stepNav').offsetHeight + 20;
+  const observer = new IntersectionObserver((entries) => {
+    let topMostIdx = currentStep;
+    let topMostTop = Infinity;
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(cards).indexOf(entry.target);
+        const top = entry.boundingClientRect.top;
+        if (top < topMostTop) {
+          topMostTop = top;
+          topMostIdx = idx;
+        }
+      }
+    });
+    // Find the card most visible near top
+    let best = 0;
+    let bestTop = Infinity;
+    cards.forEach((card, i) => {
+      const rect = card.getBoundingClientRect();
+      const dist = Math.abs(rect.top - navHeight);
+      if (rect.top < window.innerHeight && rect.bottom > navHeight) {
+        if (dist < bestTop) { bestTop = dist; best = i; }
+      }
+    });
+    setActiveStep(best);
+  }, { rootMargin: `-${navHeight}px 0px -40% 0px`, threshold: [0, 0.3] });
+
+  cards.forEach(card => observer.observe(card));
+
+  // Also track on scroll for more responsive updates
+  window.addEventListener('scroll', () => {
+    const nh = document.getElementById('stepNav').offsetHeight + 20;
+    let best = 0;
+    let bestTop = Infinity;
+    cards.forEach((card, i) => {
+      const rect = card.getBoundingClientRect();
+      const dist = Math.abs(rect.top - nh);
+      if (rect.top < window.innerHeight && rect.bottom > nh) {
+        if (dist < bestTop) { bestTop = dist; best = i; }
+      }
+    });
+    setActiveStep(best);
+  }, { passive: true });
+
+  // Click to scroll
+  stepItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const idx = parseInt(item.dataset.step);
+      const card = cards[idx];
+      if (!card) return;
+      const nh = document.getElementById('stepNav').offsetHeight;
+      const top = card.getBoundingClientRect().top + window.scrollY - nh - 12;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

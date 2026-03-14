@@ -2,10 +2,127 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=current/uvc-explorer.html">
-<title>Redirecting…</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Far-UVC Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #fdfbf7;
+  --paper-dark: #f5f0e8;
+  --ink: #1a1a1a;
+  --ink-muted: #4a4a4a;
+  --ink-light: #8a8a8a;
+  --rule: #d4cfc4;
+  --rule-light: #e8e4db;
+  --accent: #5a4a3a;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Newsreader', Georgia, serif;
+  background: linear-gradient(180deg, var(--paper) 0%, var(--paper-dark) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-muted);
+  font-size: 1rem;
+  margin-bottom: 2.5rem;
+  max-width: 500px;
+  text-align: center;
+  line-height: 1.6;
+}
+.cards {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 700px;
+}
+.card {
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  padding: 2rem 1.75rem;
+  width: 300px;
+  text-decoration: none;
+  color: var(--ink);
+  transition: box-shadow 0.2s, transform 0.2s;
+  display: block;
+}
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+.card h2 {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  margin-bottom: 0.75rem;
+}
+.card h3 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.card p {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  line-height: 1.6;
+}
+.card .arrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 1rem;
+  display: block;
+}
+.footer {
+  margin-top: 2.5rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  color: var(--ink-light);
+}
+.footer a { color: var(--ink-light); }
+</style>
 </head>
 <body>
-<p>Redirecting to <a href="current/uvc-explorer.html">current/uvc-explorer.html</a>…</p>
+<h1>Far-UVC Tools</h1>
+<p class="subtitle">222nm far-UVC lamp placement and coverage analysis for the Aerolamp DevKit V1.0</p>
+<div class="cards">
+  <a href="current/uvc-explorer.html" class="card">
+    <h2>Visualizer</h2>
+    <h3>Coverage Explorer</h3>
+    <p>View irradiance heatmaps for existing lamp configurations. Explore coverage at different heights, see lamp positions, and analyze plume transit inactivation.</p>
+    <span class="arrow">Open Explorer &rarr;</span>
+  </a>
+  <a href="current/optimizer.html" class="card">
+    <h2>Optimizer</h2>
+    <h3>Lamp Placement</h3>
+    <p>Configure your room, draw barriers and priority areas, then run a GPU-accelerated optimizer to find the best lamp positions within ACGIH safety limits.</p>
+    <span class="arrow">Open Optimizer &rarr;</span>
+  </a>
+</div>
+<div class="footer">
+  Beam profile: <a href="https://github.com/jvbelenky/guv-calcs" target="_blank">OSLUV</a> Aerolamp DevKit V1.0 assay
+</div>
 </body>
 </html>

@@ -1,0 +1,196 @@
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "name": "10E Office",
+    "units": "feet",
+    "ceilingHeight": 8.3,
+    "mountHeight": 8.1
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[0,0],[26,0],[26,48],[0,48],[0,0]]]},
+      "properties": {"featureType": "room"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "LineString", "coordinates": [[0, 17.75], [8.76, 17.75]]},
+      "properties": {"featureType": "barrier"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "LineString", "coordinates": [[0, 36.0], [11.0, 36.0]]},
+      "properties": {"featureType": "barrier"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.0,0],[6.25,0],[6.25,3.67],[4.0,3.67],[4.0,0]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[6.51,0],[8.76,0],[8.76,3.67],[6.51,3.67],[6.51,0]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.0,3.93],[6.25,3.93],[6.25,7.6],[4.0,7.6],[4.0,3.93]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[6.51,3.93],[8.76,3.93],[8.76,7.6],[6.51,7.6],[6.51,3.93]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.55,7.86],[8.22,7.86],[8.22,10.11],[4.55,10.11],[4.55,7.86]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[13.63,0],[15.88,0],[15.88,3.67],[13.63,3.67],[13.63,0]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[16.14,0],[18.39,0],[18.39,3.67],[16.14,3.67],[16.14,0]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[13.63,3.93],[15.88,3.93],[15.88,7.6],[13.63,7.6],[13.63,3.93]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[16.14,3.93],[18.39,3.93],[18.39,7.6],[16.14,7.6],[16.14,3.93]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[13.63,7.86],[15.88,7.86],[15.88,11.53],[13.63,11.53],[13.63,7.86]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[16.14,7.86],[18.39,7.86],[18.39,11.53],[16.14,11.53],[16.14,7.86]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[23.26,0],[25.51,0],[25.51,3.67],[23.26,3.67],[23.26,0]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[23.26,3.93],[25.51,3.93],[25.51,7.6],[23.26,7.6],[23.26,3.93]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[23.26,7.86],[25.51,7.86],[25.51,11.53],[23.26,11.53],[23.26,7.86]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.0,17.75],[6.25,17.75],[6.25,21.42],[4.0,21.42],[4.0,17.75]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[6.51,17.75],[8.76,17.75],[8.76,21.42],[6.51,21.42],[6.51,17.75]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.0,21.68],[6.25,21.68],[6.25,25.35],[4.0,25.35],[4.0,21.68]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[6.51,21.68],[8.76,21.68],[8.76,25.35],[6.51,25.35],[6.51,21.68]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[4.0,25.61],[6.25,25.61],[6.25,29.28],[4.0,29.28],[4.0,25.61]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[6.51,25.61],[8.76,25.61],[8.76,29.28],[6.51,29.28],[6.51,25.61]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "E"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[17.91,19.03],[21.58,19.03],[21.58,21.28],[17.91,21.28],[17.91,19.03]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[17.91,21.54],[21.58,21.54],[21.58,23.79],[17.91,23.79],[17.91,21.54]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[21.84,19.03],[25.51,19.03],[25.51,21.28],[21.84,21.28],[21.84,19.03]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[21.84,21.54],[25.51,21.54],[25.51,23.79],[21.84,23.79],[21.84,21.54]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[13.98,29.48],[17.65,29.48],[17.65,31.73],[13.98,31.73],[13.98,29.48]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[13.98,31.99],[17.65,31.99],[17.65,34.24],[13.98,34.24],[13.98,31.99]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[17.91,29.48],[21.58,29.48],[21.58,31.73],[17.91,31.73],[17.91,29.48]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[17.91,31.99],[21.58,31.99],[21.58,34.24],[17.91,34.24],[17.91,31.99]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[21.84,29.48],[25.51,29.48],[25.51,31.73],[21.84,31.73],[21.84,29.48]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[21.84,31.99],[25.51,31.99],[25.51,34.24],[21.84,34.24],[21.84,31.99]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "S"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[23.26,40.24],[25.51,40.24],[25.51,43.91],[23.26,43.91],[23.26,40.24]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[23.26,44.17],[25.51,44.17],[25.51,47.84],[23.26,47.84],[23.26,44.17]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "W"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[12.83,45.75],[16.5,45.75],[16.5,48],[12.83,48],[12.83,45.75]]]},
+      "properties": {"featureType": "priorityArea", "category": "desk", "seating": "N"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Polygon", "coordinates": [[[0,36],[11,36],[11,48],[0,48],[0,36]]]},
+      "properties": {"featureType": "priorityArea", "category": "social", "seating": "inside"}
+    }
+  ]
+}
