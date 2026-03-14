@@ -801,7 +801,7 @@ label[data-tip]:hover::after {
   <!-- ══ Card 3: Priority Areas ══ -->
   <div class="card">
     <h2>&#9314; Priority Areas</h2>
-    <p class="instruction">Draw rectangles on the floor plan to define high-priority zones. For desk areas, choose which side people sit on — probes are placed outside the rectangle edge. The background is covered automatically at low weight. Overlapping areas stack their weights. Hover over rows below to highlight on the floor plan.</p>
+    <p class="instruction">Draw rectangles on the floor plan to define high-priority zones. For desk areas, choose which side people sit on — probes are placed outside the rectangle edge. The background is covered automatically at low weight. Where areas overlap, the highest weight wins (no double-counting). Hover over rows below to highlight on the floor plan.</p>
     <div class="category-row">
       <label for="areaCategory" data-tip="Sets the default category for new areas drawn on the floor plan. Each area's category can be changed individually in the list below.">Default category</label>
       <select id="areaCategory">
@@ -1202,7 +1202,23 @@ function generatePoints() {
       }
     }
   }
-  return points;
+
+  // Deduplicate probes at same (x, y, h): keep highest weight, prefer non-bg source
+  const keyMap = new Map(); // "x,y,h" -> point
+  for (const p of points) {
+    const key = `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.h.toFixed(1)}`;
+    const existing = keyMap.get(key);
+    if (!existing) {
+      keyMap.set(key, p);
+    } else if (p.w > existing.w) {
+      // Higher weight wins; preserve the higher-weight source
+      keyMap.set(key, p);
+    } else if (p.w === existing.w && existing._src === 'bg' && p._src !== 'bg') {
+      // Same weight but prefer named source over background
+      keyMap.set(key, p);
+    }
+  }
+  return Array.from(keyMap.values());
 }
 
 function generateSafetyProbes() {
