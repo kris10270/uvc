@@ -3655,16 +3655,16 @@ function chainAnalysisHtml(count) {
   const nearBest = chainScores.filter(s => best - s <= threshold).length;
   const agreementPct = nearBest / n * 100;
 
+  // Absolute count of confirmations matters more than proportion.
+  // 3+ chains independently finding similar scores is strong evidence
+  // regardless of whether you ran 4 chains or 40.
   let verdict, color;
-  if (agreementPct >= 50) {
+  if (nearBest >= 3) {
     verdict = `${nearBest} of ${n} chains within 2% of best — well-explored, more chains unlikely to help.`;
     color = 'var(--accent)';
-  } else if (agreementPct >= 25) {
-    verdict = `${nearBest} of ${n} chains within 2% of best — reasonably explored.`;
+  } else if (nearBest === 2) {
+    verdict = `${nearBest} of ${n} chains within 2% of best — reasonably confirmed.`;
     color = 'var(--accent)';
-  } else if (nearBest >= 2) {
-    verdict = `Only ${nearBest} of ${n} chains within 2% of best — more chains or iterations may help.`;
-    color = 'var(--ink-muted)';
   } else {
     verdict = `Best chain is isolated (no others within 2%) — more chains or iterations recommended.`;
     color = '#b06030';
