@@ -882,6 +882,10 @@ label[data-tip]:hover::after {
           <input type="number" id="seedInput" placeholder="auto">
         </div>
         <div class="control-group">
+          <label for="finalTemp" data-tip="The SA temperature at the end of the run. Lower = more greedy refinement, higher = more exploration. At temp 0.2, ~0.7% of unfavorable moves are accepted. Default 0.05 gives ~62% exploration. The original Python optimizer used 0.005 (~38% exploration).">Final Temperature</label>
+          <input type="number" id="finalTemp" value="0.05" min="0.001" max="1.0" step="0.005">
+        </div>
+        <div class="control-group">
           <label for="deviceSelect" data-tip="Select your device to see an estimated run time. Estimates assume WebGPU is available; CPU fallback will be slower.">Device (for time estimate)</label>
           <select id="deviceSelect">
             <optgroup label="M1">
@@ -3056,7 +3060,8 @@ async function buildFullCaches() {
 async function runSA() {
   const iterations = cfg.iterations;
   const initialTemp = 2.0;
-  const cooling = Math.exp(Math.log(0.005 / initialTemp) / iterations);
+  const finalTemp = cfg.finalTemp || 0.05;
+  const cooling = Math.exp(Math.log(finalTemp / initialTemp) / iterations);
   let temp = initialTemp;
   const roomW = cfg.roomWidth, roomD = cfg.roomDepth;
 
@@ -3312,6 +3317,7 @@ startBtn.addEventListener('click', () => {
   const seedInputVal = document.getElementById('seedInput').value.trim();
   const baseSeed = seedInputVal !== '' ? parseInt(seedInputVal) : (Date.now() % 100000);
 
+  const finalTemp = parseFloat(document.getElementById('finalTemp')?.value) || 0.05;
   const baseConfig = {
     roomWidth: getRoomW(),
     roomDepth: getRoomD(),
@@ -3322,6 +3328,7 @@ startBtn.addEventListener('click', () => {
     threshold,
     iterations,
     mounting,
+    finalTemp,
     safetyHeight: SAFETY_HEIGHT,
     evalPoints: points,
     safetyPoints: probes,
