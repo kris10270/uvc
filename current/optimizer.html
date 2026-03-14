@@ -3847,8 +3847,7 @@ function _finishOptimizationInner() {
 
   // Add convergence to score breakdown
   const breakdownEl = document.getElementById('scoreBreakdown');
-  breakdownEl.innerHTML += convergenceHtml(scoreHistories[viewingCount] || [], lastIterations, viewingCount);
-  breakdownEl.innerHTML += chainAnalysisHtml(viewingCount);
+  breakdownEl.innerHTML += searchQualityHtml(scoreHistories[viewingCount] || [], lastIterations, viewingCount);
 
   // Final heatmap
   drawHeatmap();
