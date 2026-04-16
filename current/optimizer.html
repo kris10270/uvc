@@ -775,6 +775,15 @@ label[data-tip]:hover::after {
       </div>
     </div>
     <div class="readout" id="areaReadout">1,248 sq ft</div>
+    <div style="margin-top:0.75rem;">
+      <div class="control-group">
+        <label for="optimMode" data-tip="Well-mixed mode optimizes the volume-average irradiance (eACH), treating all air in the room equally. Best for general air disinfection in rooms with good air mixing. Near-field mode optimizes UV coverage at seated positions for direct person-to-person transmission reduction.">Optimization Goal</label>
+        <select id="optimMode" onchange="updateOptimMode()">
+          <option value="eACH" selected>Well-mixed (eACH)</option>
+          <option value="near-field">Near-field (seated coverage)</option>
+        </select>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;">
       <button class="btn-sm" id="exportGeoJSON">Export</button>
       <label class="btn-sm" style="cursor:pointer;">Import<input type="file" id="importGeoJSON" accept=".json,.geojson" style="display:none;"></label>
@@ -798,9 +807,9 @@ label[data-tip]:hover::after {
     </div>
   </div>
 
-  <!-- ══ Card 3: Priority Areas ══ -->
-  <div class="card">
-    <h2>&#9314; Priority Areas</h2>
+  <!-- ══ Card 3: Priority Areas (near-field mode only) ══ -->
+  <div class="card" id="priorityAreasCard">
+    <h2>&#9314; Priority Areas <span id="priorityModeNote" style="font-size:0.65rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-light);"></span></h2>
     <p class="instruction">Draw rectangles on the floor plan to define high-priority zones. For desk areas, choose which side people sit on — probes are placed outside the rectangle edge. The background is covered automatically at low weight. Where areas overlap, the highest weight wins (no double-counting). Hover over rows below to highlight on the floor plan.</p>
     <div class="category-row">
       <label for="areaCategory" data-tip="Sets the default category for new areas drawn on the floor plan. Each area's category can be changed individually in the list below.">Default category</label>
@@ -838,9 +847,21 @@ label[data-tip]:hover::after {
     <h2>&#9315; Optimization Settings</h2>
     <div class="controls-grid">
       <div class="control-group">
-        <label for="numLamps" data-tip="How many lamps to place. More lamps give better coverage but cost more. Try a few values to find the sweet spot.">Number of Lamps</label>
-        <input type="number" id="numLamps" value="11" min="1" max="30" step="1">
+        <label for="numDimmable" data-tip="Dimmable Aerolamps can run at 20%, 40%, 70%, or 100% power. The optimizer will choose the best power level for each. Useful near desks or low ceilings where full power would exceed TLV.">Dimmable Lamps</label>
+        <input type="number" id="numDimmable" value="11" min="0" max="30" step="1">
+        <label style="display:flex; align-items:center; gap:5px; font-family:var(--font-sans); font-size:0.7rem; font-weight:500; color:var(--ink-light); cursor:pointer; margin-top:2px;" data-tip="Also runs the optimizer for nearby dimmable lamp counts.">
+          <input type="checkbox" id="marginalDimCheck" style="accent-color:var(--ink);"> Marginal &plusmn;<input type="number" id="marginalDimRange" value="1" min="1" max="5" step="1" style="width:32px;font-family:var(--font-mono);font-size:0.7rem;padding:1px 3px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);">
+        </label>
       </div>
+      <div class="control-group">
+        <label for="numLamps" data-tip="Non-dimmable lamps run at full power (100%). Total lamps = non-dimmable + dimmable.">Non-dimmable Lamps</label>
+        <input type="number" id="numLamps" value="0" min="0" max="30" step="1">
+        <label style="display:flex; align-items:center; gap:5px; font-family:var(--font-sans); font-size:0.7rem; font-weight:500; color:var(--ink-light); cursor:pointer; margin-top:2px;" data-tip="Also runs the optimizer for nearby non-dimmable lamp counts.">
+          <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal &plusmn;<input type="number" id="marginalRange" value="1" min="1" max="5" step="1" style="width:32px;font-family:var(--font-mono);font-size:0.7rem;padding:1px 3px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);">
+        </label>
+      </div>
+    </div>
+    <div class="controls-grid" style="margin-top:1rem;">
       <div class="control-group">
         <label for="tlvHours" data-tip="How many hours per day people are exposed. Fewer hours allows higher irradiance (better inactivation) while staying within the ACGIH 222nm eye dose limit of 161 mJ/cm².">TLV Exposure Hours</label>
         <select id="tlvHours">
@@ -853,6 +874,13 @@ label[data-tip]:hover::after {
         </select>
       </div>
       <div class="control-group">
+        <label for="safetyMode" data-tip="Standard mode enforces ACGIH eye and skin TLVs. Eye-focused mode uses a stricter fixed eye threshold (2.78) and 2x the ACGIH skin TLV, for extra margin.">Safety Mode</label>
+        <select id="safetyMode" onchange="updateEyeFocusedWarning();updateDerivedValues()">
+          <option value="standard">Standard (ACGIH eye + skin)</option>
+          <option value="eye-focused">Eye-focused (2.78 eye + 2x skin TLV)</option>
+        </select>
+      </div>
+      <div class="control-group">
         <label for="iterations" data-tip="Number of simulated annealing steps per chain. More iterations find better solutions but take longer. 500K is a good default; use 1M+ for publication-quality results.">Iterations per Chain</label>
         <input type="number" id="iterations" value="500000" min="1000" max="10000000" step="1000">
       </div>
@@ -860,11 +888,6 @@ label[data-tip]:hover::after {
         <label for="chains" data-tip="Independent optimization runs in parallel, each starting from a random configuration. The best result across all chains is kept. More chains reduce the chance of getting stuck in a local optimum.">Parallel Chains</label>
         <input type="number" id="chains" min="1" max="64" step="1">
       </div>
-    </div>
-    <div style="display:flex; gap:1.5rem; margin-top:1rem; flex-wrap:wrap;">
-      <label style="display:flex; align-items:center; gap:6px; font-family:var(--font-sans); font-size:0.75rem; font-weight:500; color:var(--ink-muted); cursor:pointer;" data-tip="Also runs the optimizer for nearby lamp counts. Shows how much each additional lamp improves coverage.">
-        <input type="checkbox" id="marginalCheck" style="accent-color:var(--ink);"> Marginal analysis &plusmn;<input type="number" id="marginalRange" value="1" min="1" max="5" step="1" style="width:38px;font-family:var(--font-mono);font-size:0.75rem;padding:1px 4px;border:1px solid var(--rule);border-radius:3px;text-align:center;color:var(--ink);"> lamps
-      </label>
     </div>
     <details style="margin-top:1rem;">
       <summary style="font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);cursor:pointer;">Advanced</summary>
@@ -882,7 +905,7 @@ label[data-tip]:hover::after {
           <input type="number" id="seedInput" placeholder="auto">
         </div>
         <div class="control-group">
-          <label for="finalTemp" data-tip="The SA temperature at the end of the run. Lower = more greedy refinement, higher = more exploration. At temp 0.2, ~0.7% of unfavorable moves are accepted. Default 0.05 gives ~62% exploration. The original Python optimizer used 0.005 (~38% exploration).">Final Temperature</label>
+          <label for="finalTemp" data-tip="The simulated annealing temperature at the end of the run. Lower values make the optimizer greedier (only accepts improvements), higher values keep exploring. Default 0.05 works well for both optimization modes.">Final Temperature</label>
           <input type="number" id="finalTemp" value="0.05" min="0.001" max="1.0" step="0.005">
         </div>
         <div class="control-group">
@@ -973,18 +996,23 @@ label[data-tip]:hover::after {
           </div>
         </label>
       </div>
-      <div style="flex:1;"></div>
-      <button class="btn btn-primary" id="startBtn">&#9654; Start Optimization</button>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:180px;margin:0 auto;">
+        <button class="btn btn-primary" id="startBtn" style="width:100%;">&#9654; Run locally</button>
+        <button class="btn btn-primary" id="cloudBtn" style="width:100%;" data-tip="Runs on Modal cloud with T4 GPU acceleration. Each chain gets its own GPU instance, so all chains run fully in parallel. ~$0.40 for a typical run.">&#9729; Run on cloud</button>
+      </div>
     </div>
     <div id="timeEstimate2" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);margin-top:0.5rem;"></div>
+    <div id="cloudEstimate" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-muted);margin-top:0.25rem;"></div>
     <div id="mountingNote" style="font-family:var(--font-sans);font-size:0.6rem;color:var(--ink-light);display:none;margin-top:0.25rem;"></div>
+    <div id="eyeFocusedWarning" style="display:none;font-family:var(--font-sans);font-size:0.7rem;color:#9a5030;background:rgba(180,100,60,0.08);padding:8px 12px;border-radius:4px;margin-top:0.5rem;line-height:1.5;"></div>
 
     <!-- Progress -->
     <div class="progress-area" id="progressArea">
+      <div id="countToggle" style="display:none;margin-bottom:0.75rem;"></div>
       <div id="progressBars"></div>
       <div class="progress-stats" id="progressStats">
         <div class="progress-stat">
-          <div class="stat-label">Best Score</div>
+          <div class="stat-label" id="bestScoreLabel">Best Score</div>
           <div class="stat-value" id="bestScore">&mdash;</div>
         </div>
         <div class="progress-stat">
@@ -995,7 +1023,6 @@ label[data-tip]:hover::after {
       <div style="margin-top:0.75rem;">
         <canvas id="scoreChart" height="120" style="width:100%;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.06);"></canvas>
       </div>
-      <div id="countToggle" style="display:none;margin-top:0.75rem;"></div>
       <div class="canvas-container" style="margin-top:0.5rem;">
         <canvas id="heatmapCanvas"></canvas>
       </div>
@@ -1013,7 +1040,7 @@ label[data-tip]:hover::after {
         <h3>Lamp Positions</h3>
         <table class="lamp-table" id="lampTable">
           <thead>
-            <tr><th>#</th><th>X (ft)</th><th>Y (ft)</th><th>Aim (&deg;)</th><th>Tilt (&deg;)</th></tr>
+            <tr><th>#</th><th>X (ft)</th><th>Y (ft)</th><th>Aim (&deg;)</th><th>Tilt (&deg;)</th><th>Power</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -1090,6 +1117,7 @@ const barrierListEl  = document.getElementById('barrierList');
 const areaListEl     = document.getElementById('areaList');
 const areaCategoryEl = document.getElementById('areaCategory');
 const numLampsInput  = document.getElementById('numLamps');
+const numDimmableInput = document.getElementById('numDimmable');
 const tlvHoursInput  = document.getElementById('tlvHours');
 const iterationsInput= document.getElementById('iterations');
 const chainsInput    = document.getElementById('chains');
@@ -1158,12 +1186,19 @@ function getCanvasMousePos(canvas, e) {
 // TLV computation
 // ════════════════════════════════════════════════════════════════════
 
-const TLV_EYE_MJ = 161; // mJ/cm^2 at 222nm ACGIH 8hr
+const TLV_EYE_MJ = 146.12;  // mJ/cm^2 Aerolamp spectrally-weighted ACGIH eye (from guv-calcs)
+const TLV_SKIN_MJ = 423.58; // mJ/cm^2 Aerolamp spectrally-weighted ACGIH skin (from guv-calcs)
+const EYE_FOCUSED_EYE_THRESHOLD = 2.78;
 
 function computeTLV(hours) {
   const tlv_uwcm2 = TLV_EYE_MJ * 1000 / (hours * 3600);
-  const threshold = tlv_uwcm2 * 0.73; // 27% margin for multi-lamp overlap
-  return { tlv_uwcm2, threshold };
+  const standardThreshold = tlv_uwcm2; // direct TLV (2D IES + reflectance match guv-calcs)
+  const skinTlv = TLV_SKIN_MJ * 1000 / (hours * 3600);
+  const mode = document.getElementById('safetyMode')?.value || 'standard';
+  if (mode === 'eye-focused') {
+    return { tlv_uwcm2, threshold: EYE_FOCUSED_EYE_THRESHOLD, skinThreshold: skinTlv * 2, mode };
+  }
+  return { tlv_uwcm2, threshold: standardThreshold, skinThreshold: skinTlv, mode };
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1236,6 +1271,22 @@ function generateSafetyProbes() {
     }
   }
   return probes;
+}
+
+function generateVolumePoints() {
+  const roomW = getRoomW(), roomD = getRoomD();
+  const ceilH = getCeilH();
+  const hSpacing = 2.0; // ~2ft horizontal
+  const vSpacing = 1.0; // ~1ft vertical
+  const points = [];
+  for (let x = hSpacing/2; x < roomW; x += hSpacing) {
+    for (let y = hSpacing/2; y < roomD; y += hSpacing) {
+      for (let z = vSpacing/2; z < ceilH; z += vSpacing) {
+        points.push({ x, y, h: z, w: 1.0, _src: 'vol' });
+      }
+    }
+  }
+  return points;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1615,18 +1666,60 @@ function updateWeightSummary() {
   document.getElementById('areaCountBadge').textContent = areas.length > 0 ? `(${areas.length})` : '';
 }
 
+function updateOptimMode() {
+  const mode = document.getElementById('optimMode')?.value || 'eACH';
+  const card = document.getElementById('priorityAreasCard');
+  if (card) {
+    card.style.display = mode === 'eACH' ? 'none' : '';
+  }
+  updateEyeFocusedWarning();
+  updateDerivedValues();
+}
+
+function updateEyeFocusedWarning() {
+  const warn = document.getElementById('eyeFocusedWarning');
+  if (!warn) return;
+  const safetyMode = document.getElementById('safetyMode')?.value || 'standard';
+  const mountH = parseFloat(document.getElementById('mountH')?.value) || 8.1;
+  const numNonDim = parseInt(numLampsInput?.value) || 0;
+
+  if (safetyMode === 'eye-focused' && mountH < 8.5 && numNonDim > 0) {
+    warn.style.display = 'block';
+    warn.innerHTML = '<strong>Note:</strong> At mount heights below 8.5 ft, a single non-dimmable Aerolamp at any tilt angle exceeds the 2.78 eye threshold. '
+      + 'Non-dimmable lamps will need to aim upward (reducing coverage) to stay compliant. '
+      + 'Consider using <strong>dimmable lamps at 70% power</strong> instead, or switching to Standard safety mode.';
+  } else if (safetyMode === 'eye-focused' && mountH < 10 && numNonDim > 0) {
+    warn.style.display = 'block';
+    warn.innerHTML = '<strong>Note:</strong> In eye-focused mode, non-dimmable lamps must aim near-horizontal to stay under 2.78. '
+      + 'The optimizer will place lamps on walls aimed across the room. Downward tilts will violate the eye threshold.';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
 function updateDerivedValues() {
   const hours = parseInt(tlvHoursInput.value);
-  const { tlv_uwcm2, threshold } = computeTLV(hours);
-  const points = generatePoints();
+  const { tlv_uwcm2, threshold, skinThreshold, mode } = computeTLV(hours);
+  const optimMode = document.getElementById('optimMode')?.value || 'eACH';
+  const points = optimMode === 'eACH' ? generateVolumePoints() : generatePoints();
   const probes = generateSafetyProbes();
   const evalSp = parseFloat(document.getElementById('evalSpacing').value) || 2.0;
   const safeSp = parseFloat(document.getElementById('safetySpacing').value) || 0.5;
 
+  let safetyRow;
+  if (mode === 'eye-focused') {
+    safetyRow = `<div class="derived-row">Eye: <strong>${fmt(threshold, 2)} &micro;W/cm&sup2;</strong> (FOV-weighted) &nbsp;|&nbsp; Skin: <strong>${fmt(skinThreshold, 1)} &micro;W/cm&sup2;</strong> (2x ACGIH, horiz projection)</div>`;
+  } else {
+    safetyRow = `<div class="derived-row">Eye: <strong>${fmt(threshold, 2)} &micro;W/cm&sup2;</strong> (FOV-weighted) &nbsp;|&nbsp; Skin: <strong>${fmt(skinThreshold, 1)} &micro;W/cm&sup2;</strong> (ACGIH, horiz projection)</div>`;
+  }
+  const modeLabel = optimMode === 'eACH' ? 'Well-mixed volume' : 'Near-field seated';
+  const evalDesc = optimMode === 'eACH'
+    ? `${fmtInt(points.length)} volume pts (2ft x 1ft grid)`
+    : `~${fmtInt(points.length)} (${fmt(evalSp)}ft grid)`;
   derivedEl.innerHTML = `
     <div class="derived-row">Eye TLV at 222nm: <strong>${fmt(tlv_uwcm2, 2)} &micro;W/cm&sup2;</strong> (${TLV_EYE_MJ} mJ/cm&sup2; over ${hours}hrs)</div>
-    <div class="derived-row">Safety threshold: <strong>${fmt(threshold, 2)} &micro;W/cm&sup2;</strong> (with 27% margin)</div>
-    <div class="derived-row">Eval points: <strong>~${fmtInt(points.length)}</strong> (${fmt(evalSp)}ft grid) &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong> (${fmt(safeSp)}ft grid)</div>
+    ${safetyRow}
+    <div class="derived-row">Mode: <strong>${modeLabel}</strong> &nbsp;|&nbsp; Eval points: <strong>${evalDesc}</strong> &nbsp;|&nbsp; Safety probes: <strong>~${fmtInt(probes.length)}</strong> (${fmt(safeSp)}ft grid)</div>
   `;
   updateWeightSummary();
   updateTimeEstimate();
@@ -1668,20 +1761,27 @@ function updateTimeEstimate() {
 
   const iterations = parseInt(iterationsInput.value) || 500000;
   const chains = parseInt(chainsInput.value) || 4;
-  const marginal = document.getElementById('marginalCheck')?.checked;
-  const nLamps = parseInt(numLampsInput.value) || 11;
-  const totalProbes = generatePoints().length + generateSafetyProbes().length;
+  const nLamps = parseInt(numLampsInput.value) + parseInt(numDimmableInput?.value || 0) || 11;
+  const optimMode = document.getElementById('optimMode')?.value || 'eACH';
+  const evalPoints = optimMode === 'eACH' ? generateVolumePoints() : generatePoints();
+  const totalProbes = evalPoints.length + generateSafetyProbes().length;
 
   // Time per step: fixed overhead + probe-proportional compute
   const msPerStep = profile.msOverhead + totalProbes * profile.msPerProbe;
 
   // Total lamp counts being optimized
+  const marginalNonDim = document.getElementById('marginalCheck')?.checked;
+  const marginalDim = document.getElementById('marginalDimCheck')?.checked;
   const marginalRange = parseInt(document.getElementById('marginalRange')?.value) || 1;
+  const marginalDimRange = parseInt(document.getElementById('marginalDimRange')?.value) || 1;
+  const numNonDim = parseInt(numLampsInput.value) || 0;
+  const numDimLamps = parseInt(numDimmableInput?.value || 0);
+  const ndRange = marginalNonDim ? (2 * marginalRange + 1) : 1;
+  const ddRange = marginalDim ? (2 * marginalDimRange + 1) : 1;
+  const nConfigs = ndRange * ddRange;
   const lampCounts = [];
-  if (marginal) {
-    for (let d = -marginalRange; d <= marginalRange; d++) {
-      if (nLamps + d >= 1) lampCounts.push(nLamps + d);
-    }
+  if (nConfigs > 1) {
+    for (let i = 0; i < nConfigs; i++) lampCounts.push(nLamps); // approximate: all at primary count
   } else {
     lampCounts.push(nLamps);
   }
@@ -1739,6 +1839,21 @@ function updateTimeEstimate() {
   el.innerHTML = estimateHtml;
   const el2 = document.getElementById('timeEstimate2');
   if (el2) el2.innerHTML = estimateHtml;
+
+  // Cloud estimate: all chains run in parallel on separate T4 instances
+  // ~15s cold start + single-chain time at T4 speed
+  const cloudMsPerStep = 0.12 + totalProbes * 0.00008; // T4 GPU profile
+  const cloudChainSecs = iterations * cloudMsPerStep / 1000;
+  const cloudColdStart = 15;
+  const cloudWallSecs = cloudChainSecs + cloudColdStart;
+  const cloudMins = cloudWallSecs / 60;
+  let cloudTimeStr;
+  if (cloudMins < 1) cloudTimeStr = `~${Math.round(cloudWallSecs)}s`;
+  else if (cloudMins < 60) cloudTimeStr = `~${Math.round(cloudMins)} min`;
+  else cloudTimeStr = `~${fmt(cloudMins / 60)}hr`;
+  const cloudCost = (totalChains * cloudChainSecs / 3600 * 0.59).toFixed(2);
+  const cloudEl = document.getElementById('cloudEstimate');
+  if (cloudEl) cloudEl.innerHTML = `Cloud: <strong>${cloudTimeStr}</strong> <span style="color:var(--ink-light);">(~$${cloudCost}, ${totalChains} chains in parallel)</span>`;
 }
 
 function updateBarrierList() {
@@ -1923,7 +2038,7 @@ function refresh() {
   updateBarrierList();
   updateAreaList();
   updateAreaReadout();
-  updateDerivedValues();
+  updateOptimMode();
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -2116,9 +2231,9 @@ for (const el of [roomWInput, roomDInput, ceilHInput, mountHInput]) {
   el.addEventListener('input', refresh);
 }
 tlvHoursInput.addEventListener('change', updateDerivedValues);
-for (const el of [numLampsInput, iterationsInput, chainsInput,
+for (const el of [numLampsInput, numDimmableInput, iterationsInput, chainsInput,
     document.getElementById('evalSpacing'), document.getElementById('safetySpacing'), document.getElementById('seedInput')]) {
-  el.addEventListener('input', updateDerivedValues);
+  el.addEventListener('input', () => { updateEyeFocusedWarning(); updateDerivedValues(); });
 }
 document.querySelectorAll('input[name="mounting"]').forEach(r => {
   r.addEventListener('change', () => {
@@ -2136,6 +2251,8 @@ document.querySelectorAll('input[name="mounting"]').forEach(r => {
 document.getElementById('deviceSelect')?.addEventListener('change', updateTimeEstimate);
 document.getElementById('marginalCheck')?.addEventListener('change', updateTimeEstimate);
 document.getElementById('marginalRange')?.addEventListener('input', updateTimeEstimate);
+document.getElementById('marginalDimCheck')?.addEventListener('change', updateTimeEstimate);
+document.getElementById('marginalDimRange')?.addEventListener('input', updateTimeEstimate);
 
 // ════════════════════════════════════════════════════════════════════
 // Beam profile data (OSLUV azimuthal average)
@@ -2160,6 +2277,7 @@ const EYE_FOV_VERT_DEG = 80;
 const SAFETY_PENALTY_FINAL = 300.0;
 const AIM_OPTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
 const FT2M = 0.3048;
+
 
 // ════════════════════════════════════════════════════════════════════
 // CPU irradiance (used for heatmap + CPU fallback)
@@ -2235,6 +2353,8 @@ function drawScoreChart() {
   const canvas = document.getElementById('scoreChart');
   const scoreHistory = scoreHistories[viewingCount] || [];
   if (!canvas || scoreHistory.length < 2) return;
+  const isEACHChart = (document.getElementById('optimMode')?.value || 'eACH') === 'eACH';
+  const sf = isEACHChart ? 0.01 : 1; // scale factor for display
   const dpr = window.devicePixelRatio || 1;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2361,12 +2481,20 @@ function drawScoreChart() {
 function drawChainChart(wIdx, lampCount, chainIdx) {
   const canvas = document.getElementById('chainCanvas' + wIdx);
   if (!canvas) return;
+  const isEACHChart = (document.getElementById('optimMode')?.value || 'eACH') === 'eACH';
+  const sf = isEACHChart ? 0.01 : 1;
   const history = (chainScoreHistories[lampCount] || {})[chainIdx] || [];
   if (history.length < 2) return;
   const dpr = window.devicePixelRatio || 1;
+  // Always ensure DPR sizing
+  const cw = canvas.parentElement?.clientWidth || canvas.clientWidth || 400;
+  canvas.width = cw * dpr;
+  canvas.height = 60 * dpr;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = '60px';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const W = canvas.width / dpr, H = canvas.height / dpr;
+  const W = cw, H = 60;
   const pad = { top: 6, right: 40, bottom: 12, left: 6 };
   const plotW = W - pad.left - pad.right;
   const plotH = H - pad.top - pad.bottom;
@@ -2399,16 +2527,17 @@ function drawChainChart(wIdx, lampCount, chainIdx) {
   ctx.font = '600 9px Inter, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(last.score.toFixed(0), lastX + 4, Math.min(Math.max(lastY, pad.top + 6), pad.top + plotH - 6));
+  const lastLabel = isEACHChart ? (last.score * sf).toFixed(2) : last.score.toFixed(0);
+  ctx.fillText(lastLabel, lastX + 4, Math.min(Math.max(lastY, pad.top + 6), pad.top + plotH - 6));
 
   // Min/max labels
   ctx.fillStyle = '#b0a898';
   ctx.font = '8px JetBrains Mono, monospace';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
-  ctx.fillText(maxS.toFixed(0), W - 2, pad.top);
+  ctx.fillText(isEACHChart ? (maxS * sf).toFixed(2) : maxS.toFixed(0), W - 2, pad.top);
   ctx.textBaseline = 'bottom';
-  ctx.fillText(minS.toFixed(0), W - 2, pad.top + plotH);
+  ctx.fillText(isEACHChart ? (minS * sf).toFixed(2) : minS.toFixed(0), W - 2, pad.top + plotH);
 }
 
 function drawHeatmap() {
@@ -2486,14 +2615,16 @@ function drawHeatmap() {
       ctx.setLineDash([]);
     }
 
-    // Lamp positions (stars with aim arrows)
+    // Lamp positions (stars with aim arrows, sized by power)
     for (const l of lamps) {
       const cx = ox + l.x * scale;
       const cy = oy + l.y * scale;
-      const r = 6;
+      const power = l.power || 1.0;
+      const r = 4 + 4 * power; // 4px at 20%, 8px at 100%
 
-      // Star shape
-      ctx.fillStyle = '#1a1a1a';
+      // Star shape -- dimmer lamps are lighter
+      const starAlpha = 0.3 + 0.7 * power;
+      ctx.fillStyle = `rgba(26,26,26,${starAlpha})`;
       ctx.beginPath();
       for (let i = 0; i < 5; i++) {
         const a = (i * 72 - 90) * Math.PI / 180;
@@ -2504,11 +2635,20 @@ function drawHeatmap() {
       ctx.closePath();
       ctx.fill();
 
-      // Aim arrow
+      // Power label for dimmed lamps
+      if (power < 1.0) {
+        ctx.font = '600 8px Inter, sans-serif';
+        ctx.fillStyle = '#7a5a3a';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.round(power * 100) + '%', cx, cy - r - 3);
+      }
+
+      // Aim arrow -- shorter and fainter for dimmed lamps
       const aimRad = ((l.aim + 270) % 360) * Math.PI / 180;
-      const arrowLen = 14;
-      ctx.strokeStyle = '#c44';
-      ctx.lineWidth = 2;
+      const arrowLen = 8 + 8 * power;
+      const arrowAlpha = 0.4 + 0.6 * power;
+      ctx.strokeStyle = `rgba(204,68,68,${arrowAlpha})`;
+      ctx.lineWidth = 1.5 + power;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + arrowLen * Math.cos(aimRad), cy + arrowLen * Math.sin(aimRad));
@@ -2516,7 +2656,7 @@ function drawHeatmap() {
       // Arrowhead
       const ax = cx + arrowLen * Math.cos(aimRad);
       const ay = cy + arrowLen * Math.sin(aimRad);
-      ctx.fillStyle = '#c44';
+      ctx.fillStyle = `rgba(204,68,68,${arrowAlpha})`;
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(ax - 5 * Math.cos(aimRad - 0.5), ay - 5 * Math.sin(aimRad - 0.5));
@@ -2584,6 +2724,40 @@ const EYE_FOV_VERT_DEG = 80;
 const SAFETY_PENALTY_FINAL = 300.0;
 const AIM_OPTIONS = [0, 45, 90, 135, 180, 225, 270, 315];
 const FT2M = 0.3048;
+const POWER_LEVELS = [0.2, 0.4, 0.7, 1.0];
+
+// ── IES 2D beam profile (matches guv-calcs) ──
+const IES_B64 = "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";
+const IES_PHI = 360, IES_THETA = 91;
+let IES_DATA = null;
+let REF_BOOST = 1.0;
+function initIES() {
+  const bin = Uint8Array.from(atob(IES_B64), c => c.charCodeAt(0));
+  const u16 = new Uint16Array(bin.buffer);
+  IES_DATA = new Float32Array(u16.length);
+  for (let i = 0; i < u16.length; i++) IES_DATA[i] = u16[i] / 100;
+}
+function iesLookup(thetaDeg, phiDeg) {
+  if (thetaDeg >= 90 || thetaDeg < 0) return 0;
+  phiDeg = ((phiDeg % 360) + 360) % 360;
+  const ti = Math.min(Math.floor(thetaDeg), 89);
+  const tf = thetaDeg - ti;
+  const pi = Math.floor(phiDeg) % 360;
+  const pf = phiDeg - Math.floor(phiDeg);
+  const pi2 = (pi + 1) % 360;
+  const T = IES_THETA;
+  const v1 = IES_DATA[pi * T + ti] * (1 - pf) + IES_DATA[pi2 * T + ti] * pf;
+  const v2 = IES_DATA[pi * T + ti + 1] * (1 - pf) + IES_DATA[pi2 * T + ti + 1] * pf;
+  return v1 * (1 - tf) + v2 * tf;
+}
+function makeRotMatrix(headingDeg, bankDeg) {
+  const h = -headingDeg * Math.PI / 180, b = bankDeg * Math.PI / 180;
+  const ch = Math.cos(h), sh = Math.sin(h), cb = Math.cos(b), sb = Math.sin(b);
+  return [cb*ch, cb*(-sh), sb, sh, ch, 0, -sb*ch, -sb*(-sh), cb];
+}
+function rotApply(R, vx, vy, vz) {
+  return [R[0]*vx+R[1]*vy+R[2]*vz, R[3]*vx+R[4]*vy+R[5]*vz, R[6]*vx+R[7]*vy+R[8]*vz];
+}
 
 // ── Config (set on init) ──
 let cfg = null;
@@ -2591,22 +2765,24 @@ let nLamps, nEval, nSafety, nBarriers;
 let evalPts, safetyPts, barrierData;
 
 // ── Lamp state ──
-let lampX, lampY, lampAim, lampTilt;
+let lampX, lampY, lampAim, lampTilt, lampPower;
 let lampBx, lampBy, lampBz;
 
 // ── Irradiance caches [nLamps][nPoints] ──
 let irrECache, irrSCache;
 let totalE, totalS; // summed irradiance per point
+let irrSkinCache;
+let totalSkin;
 
 // ── GPU state ──
 let useGPU = false;
 let gpuDevice, gpuQueue;
-let benefitPipeline, safetyPipeline;
+let benefitPipeline, safetyPipeline, skinPipeline;
 let lampUniformBuf, paramUniformBuf;
-let evalPointsBuf, safetyPointsBuf, beamBuf, thetaBuf, barriersBuf;
-let benefitOutputBuf, safetyOutputBuf;
-let benefitReadBuf, safetyReadBuf;
-let benefitBindGroup, safetyBindGroup;
+let evalPointsBuf, safetyPointsBuf, beamBuf, thetaBuf, barriersBuf, iesBuf;
+let benefitOutputBuf, safetyOutputBuf, skinOutputBuf;
+let benefitReadBuf, safetyReadBuf, skinReadBuf;
+let benefitBindGroup, safetyBindGroup, skinBindGroup;
 
 async function initGPU() {
   try {
@@ -2623,7 +2799,7 @@ async function initGPU() {
 
 function createGPUBuffers() {
   // Lamp uniform: lx, ly, bx, by, bz, pad, pad, pad = 8 floats = 32 bytes
-  lampUniformBuf = gpuDevice.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  lampUniformBuf = gpuDevice.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 
   // Params uniform: mountH, ft2m, nBarriers, nPoints, safetyHeight, fovHalfRad, pad, pad = 8 floats
   paramUniformBuf = gpuDevice.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -2674,13 +2850,21 @@ function createGPUBuffers() {
   new Float32Array(barriersBuf.getMappedRange()).set(barData);
   barriersBuf.unmap();
 
+  // IES data buffer (360 phi x 91 theta = 32760 floats)
+  const iesFloat = new Float32Array(IES_DATA);
+  iesBuf = gpuDevice.createBuffer({ size: iesFloat.byteLength, usage: GPUBufferUsage.STORAGE, mappedAtCreation: true });
+  new Float32Array(iesBuf.getMappedRange()).set(iesFloat);
+  iesBuf.unmap();
+
   // Output buffers
   const evalOutSize = nEval * 4;
   const safOutSize = nSafety * 4;
   benefitOutputBuf = gpuDevice.createBuffer({ size: evalOutSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
   safetyOutputBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+  skinOutputBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
   benefitReadBuf = gpuDevice.createBuffer({ size: evalOutSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
   safetyReadBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+  skinReadBuf = gpuDevice.createBuffer({ size: safOutSize, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
 }
 
 function createGPUPipelines() {
@@ -2688,7 +2872,11 @@ function createGPUPipelines() {
 struct LampParams {
   lx: f32, ly: f32,
   bx: f32, by: f32, bz: f32,
-  pad0: f32, pad1: f32, pad2: f32,
+  r00: f32, r01: f32, r02: f32,
+  r10: f32, r11: f32, r12: f32,
+  r20: f32, r21: f32, r22: f32,
+  ref_boost: f32,
+  pad0: f32,
 };
 struct SimParams {
   mountH: f32, ft2m: f32,
@@ -2704,9 +2892,11 @@ struct SimParams {
 @group(0) @binding(4) var<storage, read> beam_theta: array<f32>;
 @group(0) @binding(5) var<storage, read> barriers: array<vec4<f32>>;
 @group(0) @binding(6) var<storage, read_write> output: array<f32>;
+@group(0) @binding(7) var<storage, read> ies_data: array<f32>;
 
 const PI: f32 = 3.14159265359;
-const THETA_STEP: f32 = 0.0872664626; // 5 deg in rad
+const IES_THETA_COUNT: u32 = 91u;
+const IES_PHI_COUNT: u32 = 360u;
 
 fn seg_intersect(ax1: f32, ay1: f32, ax2: f32, ay2: f32,
                  bx1: f32, by1: f32, bx2: f32, by2: f32) -> bool {
@@ -2719,27 +2909,40 @@ fn seg_intersect(ax1: f32, ay1: f32, ax2: f32, ay2: f32,
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999;
 }
 
-fn beam_interp(theta: f32) -> f32 {
-  if (theta <= 0.0) { return beam_i[0]; }
-  if (theta >= PI * 0.5) { return 0.0; }
-  let fi = theta / THETA_STEP;
-  let i0 = min(u32(fi), 17u);
-  let frac = fi - f32(i0);
-  return beam_i[i0] * (1.0 - frac) + beam_i[i0 + 1u] * frac;
+fn ies_lookup(theta_deg: f32, phi_deg: f32) -> f32 {
+  if (theta_deg >= 90.0 || theta_deg < 0.0) { return 0.0; }
+  var pd = ((phi_deg % 360.0) + 360.0) % 360.0;
+  let ti = min(u32(theta_deg), 89u);
+  let tf = theta_deg - f32(ti);
+  let pi_idx = u32(pd) % IES_PHI_COUNT;
+  let pf = pd - f32(u32(pd));
+  let pi2 = (pi_idx + 1u) % IES_PHI_COUNT;
+  let v1 = ies_data[pi_idx * IES_THETA_COUNT + ti] * (1.0 - pf) + ies_data[pi2 * IES_THETA_COUNT + ti] * pf;
+  let v2 = ies_data[pi_idx * IES_THETA_COUNT + ti + 1u] * (1.0 - pf) + ies_data[pi2 * IES_THETA_COUNT + ti + 1u] * pf;
+  return v1 * (1.0 - tf) + v2 * tf;
 }
 
 fn compute_irr(idx: u32, is_safety: bool) -> f32 {
   let pt = points[idx];
   let px = pt.x; let py = pt.y; let ph = pt.z;
   let vx = px - lamp.lx; let vy = py - lamp.ly; let vz = ph - params.mountH;
-  let d2 = vx*vx + vy*vy + vz*vz;
-  let d = max(sqrt(d2), 0.1);
+  let d = max(sqrt(vx*vx + vy*vy + vz*vz), 0.1);
   let dm = d * params.ft2m;
-  let ct = clamp((vx*lamp.bx + vy*lamp.by + vz*lamp.bz) / d, -1.0, 1.0);
-  if (ct < 0.0) { return 0.0; }
-  let theta = acos(ct);
-  let I = beam_interp(theta);
+
+  // Transform to lamp-local coords (y-flip: -vy for guv-calcs convention)
+  let neg_vy = -vy;
+  let lx2 = lamp.r00*vx + lamp.r01*neg_vy + lamp.r02*vz;
+  let ly2 = lamp.r10*vx + lamp.r11*neg_vy + lamp.r12*vz;
+  let lz2 = lamp.r20*vx + lamp.r21*neg_vy + lamp.r22*vz;
+
+  let theta_deg = acos(clamp(-lz2/d, -1.0, 1.0)) * 180.0 / PI;
+  if (theta_deg >= 90.0) { return 0.0; }
+  var phi_deg = atan2(lx2, ly2) * 180.0 / PI;
+  if (phi_deg < 0.0) { phi_deg = phi_deg + 360.0; }
+
+  let I = ies_lookup(theta_deg, phi_deg);
   if (I <= 0.0) { return 0.0; }
+
   // Barrier check
   let nb = u32(params.nBarriers);
   for (var b = 0u; b < nb; b = b + 1u) {
@@ -2748,7 +2951,9 @@ fn compute_irr(idx: u32, is_safety: bool) -> f32 {
       return 0.0;
     }
   }
-  var E = 0.1 * I / (dm * dm);
+
+  var E = 0.1 * I / (dm * dm) * lamp.ref_boost;
+
   if (is_safety) {
     let thetaVert = acos(clamp((params.mountH - ph) / d, -1.0, 1.0));
     if (thetaVert < (PI * 0.5 - params.fovHalfRad) || thetaVert > (PI * 0.5 + params.fovHalfRad)) {
@@ -2772,6 +2977,20 @@ fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (idx >= u32(params.nPoints)) { return; }
   output[idx] = compute_irr(idx, true);
 }
+
+@compute @workgroup_size(64)
+fn irr_skin(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let idx = gid.x;
+  if (idx >= u32(params.nPoints)) { return; }
+  var E = compute_irr(idx, false);
+  if (E > 0.0) {
+    let pt = points[idx];
+    let vz = pt.z - params.mountH;
+    let d = max(sqrt((pt.x - lamp.lx)*(pt.x - lamp.lx) + (pt.y - lamp.ly)*(pt.y - lamp.ly) + vz*vz), 0.1);
+    E = E * clamp((params.mountH - pt.z) / d, 0.0, 1.0);
+  }
+  output[idx] = E;
+}
 \`;
 
   const shaderModule = gpuDevice.createShaderModule({ code: shaderCode });
@@ -2785,6 +3004,7 @@ fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
       { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
     ]
   });
 
@@ -2798,6 +3018,10 @@ fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
     layout: pipelineLayout,
     compute: { module: shaderModule, entryPoint: 'irr_safety' }
   });
+  skinPipeline = gpuDevice.createComputePipeline({
+    layout: pipelineLayout,
+    compute: { module: shaderModule, entryPoint: 'irr_skin' }
+  });
 
   // Bind groups
   benefitBindGroup = gpuDevice.createBindGroup({
@@ -2810,6 +3034,7 @@ fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
       { binding: 4, resource: { buffer: thetaBuf } },
       { binding: 5, resource: { buffer: barriersBuf } },
       { binding: 6, resource: { buffer: benefitOutputBuf } },
+      { binding: 7, resource: { buffer: iesBuf } },
     ]
   });
   safetyBindGroup = gpuDevice.createBindGroup({
@@ -2822,18 +3047,36 @@ fn irr_safety(@builtin(global_invocation_id) gid: vec3<u32>) {
       { binding: 4, resource: { buffer: thetaBuf } },
       { binding: 5, resource: { buffer: barriersBuf } },
       { binding: 6, resource: { buffer: safetyOutputBuf } },
+      { binding: 7, resource: { buffer: iesBuf } },
+    ]
+  });
+  skinBindGroup = gpuDevice.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [
+      { binding: 0, resource: { buffer: lampUniformBuf } },
+      { binding: 1, resource: { buffer: paramUniformBuf } },
+      { binding: 2, resource: { buffer: safetyPointsBuf } },
+      { binding: 3, resource: { buffer: beamBuf } },
+      { binding: 4, resource: { buffer: thetaBuf } },
+      { binding: 5, resource: { buffer: barriersBuf } },
+      { binding: 6, resource: { buffer: skinOutputBuf } },
+      { binding: 7, resource: { buffer: iesBuf } },
     ]
   });
 }
 
 async function gpuComputeLamp(li) {
-  // Write lamp params
+  // Write lamp params with rotation matrix
   const aimRad = ((lampAim[li] + 270) % 360) * Math.PI / 180;
   const tiltRad = lampTilt[li] * Math.PI / 180;
   const bx = Math.cos(aimRad) * Math.cos(tiltRad);
   const by = Math.sin(aimRad) * Math.cos(tiltRad);
   const bz = -Math.sin(tiltRad);
-  const lampData = new Float32Array([lampX[li], lampY[li], bx, by, bz, 0, 0, 0]);
+  // Compute rotation matrix for IES lookup (y-flip for guv-calcs convention)
+  const heading = (Math.atan2(-by, bx) * 180 / Math.PI + 360) % 360;
+  const bank = Math.acos(Math.min(1, Math.max(-1, -bz))) * 180 / Math.PI;
+  const R = makeRotMatrix(heading, bank);
+  const lampData = new Float32Array([lampX[li], lampY[li], bx, by, bz, R[0], R[1], R[2], R[3], R[4], R[5], R[6], R[7], R[8], REF_BOOST, 0]);
   gpuQueue.writeBuffer(lampUniformBuf, 0, lampData);
 
   // Update nPoints for benefit
@@ -2866,6 +3109,20 @@ async function gpuComputeLamp(li) {
   encoder.copyBufferToBuffer(safetyOutputBuf, 0, safetyReadBuf, 0, nSafety * 4);
   gpuQueue.submit([encoder.finish()]);
 
+  // Dispatch skin (eye-focused mode only)
+  let skinResult = null;
+  if (cfg.safetyMode === 'eye-focused') {
+    gpuQueue.writeBuffer(paramUniformBuf, 0, paramDataS);
+    encoder = gpuDevice.createCommandEncoder();
+    pass = encoder.beginComputePass();
+    pass.setPipeline(skinPipeline);
+    pass.setBindGroup(0, skinBindGroup);
+    pass.dispatchWorkgroups(wgS);
+    pass.end();
+    encoder.copyBufferToBuffer(skinOutputBuf, 0, skinReadBuf, 0, nSafety * 4);
+    gpuQueue.submit([encoder.finish()]);
+  }
+
   // Read back both
   await benefitReadBuf.mapAsync(GPUMapMode.READ);
   const eResult = new Float32Array(benefitReadBuf.getMappedRange().slice(0));
@@ -2875,7 +3132,21 @@ async function gpuComputeLamp(li) {
   const sResult = new Float32Array(safetyReadBuf.getMappedRange().slice(0));
   safetyReadBuf.unmap();
 
-  return { evalIrr: eResult, safetyIrr: sResult };
+  if (cfg.safetyMode === 'eye-focused') {
+    await skinReadBuf.mapAsync(GPUMapMode.READ);
+    skinResult = new Float32Array(skinReadBuf.getMappedRange().slice(0));
+    skinReadBuf.unmap();
+  }
+
+  // Scale by lamp power (dimmable lamps)
+  const power = lampPower[li];
+  if (power < 1.0) {
+    for (let i = 0; i < eResult.length; i++) eResult[i] *= power;
+    for (let i = 0; i < sResult.length; i++) sResult[i] *= power;
+    if (skinResult) for (let i = 0; i < skinResult.length; i++) skinResult[i] *= power;
+  }
+
+  return { evalIrr: eResult, safetyIrr: sResult, skinIrr: skinResult };
 }
 
 // ── CPU fallback ──
@@ -2908,16 +3179,24 @@ function cpuComputeLamp(li) {
   const mountH = cfg.mountHeight;
   const fovHalfRad = EYE_FOV_VERT_DEG / 2 * Math.PI / 180;
 
+  // Compute rotation matrix for IES lookup (y-flip for guv-calcs convention)
+  const heading = (Math.atan2(-by, bx) * 180 / Math.PI + 360) % 360;
+  const bank = Math.acos(Math.min(1, Math.max(-1, -bz))) * 180 / Math.PI;
+  const R = makeRotMatrix(heading, bank);
+
   const evalIrr = new Float32Array(nEval);
   for (let i = 0; i < nEval; i++) {
     const pt = evalPts[i];
     const vx = pt.x - lx, vy = pt.y - ly, vz = pt.h - mountH;
     const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
     const dm = d * FT2M;
-    const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
-    if (ct < 0) continue;
-    const theta = Math.acos(ct);
-    const I = cpuBeamInterp(theta);
+    // Transform to lamp-local coords (y-flip for guv-calcs convention)
+    const loc = rotApply(R, vx, -vy, vz);
+    const thetaDeg = Math.acos(Math.min(1, Math.max(-1, -loc[2]/d))) * 180 / Math.PI;
+    if (thetaDeg >= 90) continue;
+    let phiDeg = Math.atan2(loc[0], loc[1]) * 180 / Math.PI;
+    if (phiDeg < 0) phiDeg += 360;
+    const I = iesLookup(thetaDeg, phiDeg);
     if (I <= 0) continue;
     let blocked = false;
     for (let b = 0; b < nBarriers; b++) {
@@ -2935,10 +3214,12 @@ function cpuComputeLamp(li) {
     const vx = pt.x - lx, vy = pt.y - ly, vz = pt.h - mountH;
     const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
     const dm = d * FT2M;
-    const ct = Math.max(Math.min((vx*bx + vy*by + vz*bz) / d, 1), -1);
-    if (ct < 0) continue;
-    const theta = Math.acos(ct);
-    const I = cpuBeamInterp(theta);
+    const loc = rotApply(R, vx, -vy, vz);
+    const thetaDeg = Math.acos(Math.min(1, Math.max(-1, -loc[2]/d))) * 180 / Math.PI;
+    if (thetaDeg >= 90) continue;
+    let phiDeg = Math.atan2(loc[0], loc[1]) * 180 / Math.PI;
+    if (phiDeg < 0) phiDeg += 360;
+    const I = iesLookup(thetaDeg, phiDeg);
     if (I <= 0) continue;
     let blocked = false;
     for (let b = 0; b < nBarriers; b++) {
@@ -2954,23 +3235,78 @@ function cpuComputeLamp(li) {
     safetyIrr[i] = E;
   }
 
-  return { evalIrr, safetyIrr };
+  let skinIrr = null;
+  if (cfg.safetyMode === 'eye-focused') {
+    // Skin: horizontal cos(theta) projection (top-of-head, matches guv-calcs skin_horiz)
+    skinIrr = new Float32Array(nSafety);
+    for (let i = 0; i < nSafety; i++) {
+      const pt = safetyPts[i];
+      const vx = pt.x - lx, vy = pt.y - ly, vz = pt.h - mountH;
+      const d = Math.max(Math.sqrt(vx*vx + vy*vy + vz*vz), 0.1);
+      const dm = d * FT2M;
+      const loc = rotApply(R, vx, -vy, vz);
+      const thetaDeg = Math.acos(Math.min(1, Math.max(-1, -loc[2]/d))) * 180 / Math.PI;
+      if (thetaDeg >= 90) continue;
+      let phiDeg = Math.atan2(loc[0], loc[1]) * 180 / Math.PI;
+      if (phiDeg < 0) phiDeg += 360;
+      const I = iesLookup(thetaDeg, phiDeg);
+      if (I <= 0) continue;
+      let blocked = false;
+      for (let b = 0; b < nBarriers; b++) {
+        if (cpuSegIntersect(lx, ly, pt.x, pt.y, barrierData[b].x1, barrierData[b].y1, barrierData[b].x2, barrierData[b].y2)) {
+          blocked = true; break;
+        }
+      }
+      if (blocked) continue;
+      const cosVert = Math.max(0, (mountH - pt.h) / d);
+      skinIrr[i] = 0.1 * I / (dm * dm) * cosVert;
+    }
+  }
+
+  // Apply reflectance boost
+  for (let i = 0; i < nEval; i++) evalIrr[i] *= REF_BOOST;
+  for (let i = 0; i < nSafety; i++) safetyIrr[i] *= REF_BOOST;
+  if (skinIrr) for (let i = 0; i < nSafety; i++) skinIrr[i] *= REF_BOOST;
+
+  // Scale by lamp power (dimmable lamps)
+  const power = lampPower[li];
+  if (power < 1.0) {
+    for (let i = 0; i < nEval; i++) evalIrr[i] *= power;
+    for (let i = 0; i < nSafety; i++) safetyIrr[i] *= power;
+    if (skinIrr) for (let i = 0; i < nSafety; i++) skinIrr[i] *= power;
+  }
+
+  return { evalIrr, safetyIrr, skinIrr };
 }
 
 // ── Scoring ──
 function computeScore(safetyPW) {
   let benefit = 0, floorPen = 0, safetyPen = 0;
-  for (let i = 0; i < nEval; i++) {
-    const w = evalPts[i].w;
-    const irr = totalE[i];
-    benefit += w * Math.min(irr, BENEFIT_CAP);
-    if (irr < MIN_IRRADIANCE) {
-      const gap = MIN_IRRADIANCE - irr;
-      floorPen += MIN_IRR_PENALTY_WEIGHT * w * gap * gap;
+  if (cfg.optimMode === 'eACH') {
+    // Well-mixed mode: benefit = volume-average irradiance scaled 100x
+    // (matches near-field score magnitude for SA parameter compatibility)
+    let sum = 0;
+    for (let i = 0; i < nEval; i++) sum += totalE[i];
+    benefit = sum / nEval * 100;
+  } else {
+    // Near-field mode: weighted benefit with cap and floor penalty
+    for (let i = 0; i < nEval; i++) {
+      const w = evalPts[i].w;
+      const irr = totalE[i];
+      benefit += w * Math.min(irr, BENEFIT_CAP);
+      if (irr < MIN_IRRADIANCE) {
+        const gap = MIN_IRRADIANCE - irr;
+        floorPen += MIN_IRR_PENALTY_WEIGHT * w * gap * gap;
+      }
     }
   }
+  // Safety penalty (same for both modes)
   for (let i = 0; i < nSafety; i++) {
-    const over = totalS[i] - cfg.threshold;
+    let over = totalS[i] - cfg.threshold;
+    if (cfg.safetyMode === 'eye-focused' && totalSkin) {
+      const skinOver = totalSkin[i] - cfg.skinThreshold;
+      if (skinOver > over) over = skinOver;
+    }
     if (over > 0) safetyPen += over;
   }
   return { score: benefit - safetyPW * safetyPen - floorPen, benefit, safetyPen, floorPen };
@@ -2992,9 +3328,21 @@ function initLamps() {
   lampY = new Float32Array(nLamps);
   lampAim = new Float32Array(nLamps);
   lampTilt = new Float32Array(nLamps);
+  lampPower = new Float32Array(nLamps);
   lampBx = new Float32Array(nLamps);
   lampBy = new Float32Array(nLamps);
   lampBz = new Float32Array(nLamps);
+
+  const nDimmable = cfg.numDimmable || 0;
+  // Non-dimmable lamps (indices 0 to nLamps-nDimmable-1) get power=1.0
+  // Dimmable lamps (last nDimmable indices) get random power
+  for (let i = 0; i < nLamps; i++) {
+    if (i < nLamps - nDimmable) {
+      lampPower[i] = 1.0;
+    } else {
+      lampPower[i] = POWER_LEVELS[Math.floor(rand() * 4)];
+    }
+  }
 
   const roomW = cfg.roomWidth, roomD = cfg.roomDepth;
   const mounting = cfg.mounting;
@@ -3042,6 +3390,14 @@ async function buildFullCaches() {
   totalE = new Float32Array(nEval);
   totalS = new Float32Array(nSafety);
 
+  if (cfg.safetyMode === 'eye-focused') {
+    irrSkinCache = new Array(nLamps);
+    totalSkin = new Float32Array(nSafety);
+  } else {
+    irrSkinCache = null;
+    totalSkin = null;
+  }
+
   for (let li = 0; li < nLamps; li++) {
     let result;
     if (useGPU) {
@@ -3053,25 +3409,32 @@ async function buildFullCaches() {
     irrSCache[li] = result.safetyIrr;
     for (let i = 0; i < nEval; i++) totalE[i] += result.evalIrr[i];
     for (let i = 0; i < nSafety; i++) totalS[i] += result.safetyIrr[i];
+    if (cfg.safetyMode === 'eye-focused' && result.skinIrr) {
+      irrSkinCache[li] = result.skinIrr;
+      for (let i = 0; i < nSafety; i++) totalSkin[i] += result.skinIrr[i];
+    }
   }
 }
 
 // ── SA main loop ──
 async function runSA() {
   const iterations = cfg.iterations;
+  const isEACH = cfg.optimMode === 'eACH';
+  // Same SA parameters for both modes -- eACH benefit is scaled 100x internally
+  // to match near-field magnitude (~200-500)
   const initialTemp = 2.0;
   const finalTemp = cfg.finalTemp || 0.05;
   const cooling = Math.exp(Math.log(finalTemp / initialTemp) / iterations);
   let temp = initialTemp;
   const roomW = cfg.roomWidth, roomD = cfg.roomDepth;
 
-  // Initial score with annealing penalty
+  const safetyPenaltyFinal = SAFETY_PENALTY_FINAL;
   let safetyPW = 3.0 / Math.max(temp / initialTemp, 0.01);
   let cur = computeScore(safetyPW);
   let curScore = cur.score;
 
   // Best tracking with final penalty
-  let bestFinal = computeScore(SAFETY_PENALTY_FINAL);
+  let bestFinal = computeScore(safetyPenaltyFinal);
   let bestScore = bestFinal.score;
   let bestLamps = extractLamps();
   let bestBenefit = bestFinal.benefit;
@@ -3112,13 +3475,18 @@ async function runSA() {
 
     // Pick random lamp to perturb
     const li = randInt(nLamps);
-    const oldX = lampX[li], oldY = lampY[li], oldAim = lampAim[li], oldTilt = lampTilt[li];
+    const oldX = lampX[li], oldY = lampY[li], oldAim = lampAim[li], oldTilt = lampTilt[li], oldPower = lampPower[li];
     const oldECache = irrECache[li];
     const oldSCache = irrSCache[li];
+    const oldSkinCache = cfg.safetyMode === 'eye-focused' ? irrSkinCache[li] : null;
 
     // Perturb
     const r = rand();
-    if (r < 0.4) {
+    const isDimmable = li >= (nLamps - (cfg.numDimmable || 0));
+    if (isDimmable && r < 0.15) {
+      // Power change
+      lampPower[li] = POWER_LEVELS[randInt(4)];
+    } else if (r < (isDimmable ? 0.45 : 0.4)) {
       // Position
       if (cfg.mounting === 'wall') {
         // Perturb along the wall the lamp is on
@@ -3160,7 +3528,7 @@ async function runSA() {
 
     // Check spacing
     if (!checkSpacing(li)) {
-      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt;
+      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt; lampPower[li] = oldPower;
       continue;
     }
 
@@ -3177,10 +3545,14 @@ async function runSA() {
     // Incremental update: trial totals
     const newECache = result.evalIrr;
     const newSCache = result.safetyIrr;
+    const newSkinCache = result.skinIrr;
 
     // Update totals temporarily
     for (let i = 0; i < nEval; i++) totalE[i] += newECache[i] - oldECache[i];
     for (let i = 0; i < nSafety; i++) totalS[i] += newSCache[i] - oldSCache[i];
+    if (cfg.safetyMode === 'eye-focused' && newSkinCache && oldSkinCache) {
+      for (let i = 0; i < nSafety; i++) totalSkin[i] += newSkinCache[i] - oldSkinCache[i];
+    }
 
     const trial = computeScore(safetyPW);
 
@@ -3190,9 +3562,10 @@ async function runSA() {
       curScore = trial.score;
       irrECache[li] = newECache;
       irrSCache[li] = newSCache;
+      if (cfg.safetyMode === 'eye-focused' && newSkinCache) irrSkinCache[li] = newSkinCache;
 
       // Check if new best (using final penalty)
-      const finalTrial = computeScore(SAFETY_PENALTY_FINAL);
+      const finalTrial = computeScore(safetyPenaltyFinal);
       if (finalTrial.score > bestScore) {
         bestScore = finalTrial.score;
         bestLamps = extractLamps();
@@ -3204,7 +3577,10 @@ async function runSA() {
       // Reject: revert totals
       for (let i = 0; i < nEval; i++) totalE[i] += oldECache[i] - newECache[i];
       for (let i = 0; i < nSafety; i++) totalS[i] += oldSCache[i] - newSCache[i];
-      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt;
+      if (cfg.safetyMode === 'eye-focused' && newSkinCache && oldSkinCache) {
+        for (let i = 0; i < nSafety; i++) totalSkin[i] += oldSkinCache[i] - newSkinCache[i];
+      }
+      lampX[li] = oldX; lampY[li] = oldY; lampAim[li] = oldAim; lampTilt[li] = oldTilt; lampPower[li] = oldPower;
       updateBeamVec(li);
     }
 
@@ -3242,7 +3618,7 @@ async function runSA() {
 function extractLamps() {
   const lamps = [];
   for (let i = 0; i < nLamps; i++) {
-    lamps.push({ x: lampX[i], y: lampY[i], aim: lampAim[i], tilt: lampTilt[i] });
+    lamps.push({ x: lampX[i], y: lampY[i], aim: lampAim[i], tilt: lampTilt[i], power: lampPower[i] });
   }
   return lamps;
 }
@@ -3268,6 +3644,13 @@ self.onmessage = async function(e) {
 
   initRNG(msg.seed);
 
+  // Initialize IES data and reflectance boost
+  initIES();
+  const roomW = cfg.roomWidth, roomD = cfg.roomDepth, roomH = cfg.ceilingHeight || (cfg.mountHeight + 0.2);
+  const S = 2 * (roomW*roomD + roomW*roomH + roomD*roomH);
+  const V = roomW * roomD * roomH;
+  REF_BOOST = 1 + 0.078 * 0.85 * S / V;
+
   // Try GPU
   useGPU = await initGPU();
   if (useGPU) {
@@ -3284,11 +3667,29 @@ self.onmessage = async function(e) {
   }
 
   // Initialize lamps and caches
-  initLamps();
-  await buildFullCaches();
+  try {
+    initLamps();
+    await buildFullCaches();
 
-  // Run SA
-  await runSA();
+    // Diagnostic: check initial state
+    let diagSum = 0;
+    for (let i = 0; i < nEval; i++) diagSum += totalE[i];
+    const diagAvg = diagSum / nEval;
+    let diagSafMax = 0;
+    for (let i = 0; i < nSafety; i++) if (totalS[i] > diagSafMax) diagSafMax = totalS[i];
+    console.log('Worker init: nEval=' + nEval + ', nSafety=' + nSafety + ', volAvg=' + diagAvg.toFixed(4) + ', peakEye=' + diagSafMax.toFixed(2) + ', optimMode=' + cfg.optimMode + ', threshold=' + cfg.threshold);
+    // Check single lamp irradiance
+    const lamp0E = irrECache[0];
+    let l0sum = 0;
+    for (let i = 0; i < nEval; i++) l0sum += lamp0E[i];
+    console.log('Lamp 0: evalSum=' + l0sum.toFixed(2) + ', evalAvg=' + (l0sum/nEval).toFixed(4) + ', pos=(' + lampX[0].toFixed(1) + ',' + lampY[0].toFixed(1) + ') aim=' + lampAim[0].toFixed(0) + ' tilt=' + lampTilt[0].toFixed(0));
+
+    // Run SA
+    await runSA();
+  } catch (err) {
+    postMessage({ type: 'error', message: err.message, stack: err.stack });
+    console.error('Worker error:', err);
+  }
 };
 `;
 }
@@ -3301,6 +3702,7 @@ let workers = [];
 let optimizerRunning = false;
 let optimizerStartTime = 0;
 let elapsedTimer = null;
+let cloudAborted = false;
 let chainResults = [];
 let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
@@ -3320,24 +3722,38 @@ startBtn.addEventListener('click', () => {
   if (optimizerRunning) return;
 
   const hours = parseInt(tlvHoursInput.value);
-  const { tlv_uwcm2, threshold } = computeTLV(hours);
-  const points = generatePoints();
+  const { tlv_uwcm2, threshold, skinThreshold, mode } = computeTLV(hours);
+  const optimMode = document.getElementById('optimMode')?.value || 'eACH';
+  const evalPoints = optimMode === 'eACH' ? generateVolumePoints() : generatePoints();
   const probes = generateSafetyProbes();
   const mounting = document.querySelector('input[name="mounting"]:checked').value;
-  const numLamps = parseInt(numLampsInput.value);
+  const numNonDim = parseInt(numLampsInput.value);
+  const numDim = parseInt(numDimmableInput?.value || 0);
+  const numLamps = numNonDim + numDim;
   const iterations = parseInt(iterationsInput.value);
   const numChains = parseInt(chainsInput.value);
-  const doMarginal = document.getElementById('marginalCheck').checked;
+  const doMarginalNonDim = document.getElementById('marginalCheck').checked;
+  const doMarginalDim = document.getElementById('marginalDimCheck')?.checked;
 
-  // Determine lamp counts to optimize
+  // Determine lamp count combinations to optimize
   const marginalRange = parseInt(document.getElementById('marginalRange')?.value) || 1;
-  const lampCounts = [];
-  if (doMarginal) {
-    for (let d = -marginalRange; d <= marginalRange; d++) {
-      if (numLamps + d >= 1) lampCounts.push(numLamps + d);
+  const marginalDimRange = parseInt(document.getElementById('marginalDimRange')?.value) || 1;
+  const lampCountConfigs = []; // [{total, numDimmable}]
+  const nonDimRange = doMarginalNonDim ? Array.from({length: 2*marginalRange+1}, (_, i) => numNonDim + i - marginalRange) : [numNonDim];
+  const dimRange = doMarginalDim ? Array.from({length: 2*marginalDimRange+1}, (_, i) => numDim + i - marginalDimRange) : [numDim];
+  for (const nd of nonDimRange) {
+    for (const dd of dimRange) {
+      if (nd >= 0 && dd >= 0 && nd + dd >= 1) {
+        lampCountConfigs.push({ total: nd + dd, numDimmable: dd });
+      }
     }
-  } else {
-    lampCounts.push(numLamps);
+  }
+  // Deduplicate by total (keep first occurrence -- configs with same total but different dim/nondim split are distinct)
+  const lampCounts = [...new Set(lampCountConfigs.map(c => c.total))].sort((a, b) => a - b);
+  // Map total -> numDimmable for config lookup
+  const dimByTotal = {};
+  for (const c of lampCountConfigs) {
+    if (!(c.total in dimByTotal)) dimByTotal[c.total] = c.numDimmable;
   }
 
   // Determine seed
@@ -3353,18 +3769,22 @@ startBtn.addEventListener('click', () => {
     tlvHours: hours,
     tlv_uwcm2,
     threshold,
+    skinThreshold: skinThreshold || 0,
+    safetyMode: mode || 'standard',
+    optimMode,
     iterations,
     mounting,
     finalTemp,
+    numDimmable: numDim,
     safetyHeight: SAFETY_HEIGHT,
-    evalPoints: points,
+    evalPoints: evalPoints,
     safetyPoints: probes,
     barriers: [...barriers],
   };
 
   const totalWorkers = lampCounts.length * numChains;
   console.log('Starting optimizer:', lampCounts.length, 'lamp count(s)', lampCounts, 'x', numChains, 'chains x', iterations.toLocaleString(), 'iterations');
-  console.log('Eval points:', points.length, '| Safety probes:', probes.length);
+  console.log('Eval points:', evalPoints.length, '| Safety probes:', probes.length, '| Mode:', optimMode);
 
   // Show progress area
   const progressArea = document.getElementById('progressArea');
@@ -3378,6 +3798,7 @@ startBtn.addEventListener('click', () => {
   bestResult = null;
 
   // Set up marginal tracking
+  const doMarginal = doMarginalNonDim || doMarginalDim;
   marginalRunData = doMarginal ? {
     lampCounts,
     primaryN: numLamps,
@@ -3462,7 +3883,7 @@ startBtn.addEventListener('click', () => {
     statsEl.innerHTML = statsHtml;
   } else {
     statsEl.innerHTML = `
-      <div class="progress-stat"><div class="stat-label">Best Score</div><div class="stat-value" id="bestScore">&mdash;</div></div>
+      <div class="progress-stat"><div class="stat-label">${(document.getElementById('optimMode')?.value||'eACH')==='eACH'?'Avg Fluence (µW/cm²)':'Best Score'}</div><div class="stat-value" id="bestScore">&mdash;</div></div>
       <div class="progress-stat"><div class="stat-label">Elapsed</div><div class="stat-value" id="elapsed">0:00</div></div>
     `;
   }
@@ -3499,13 +3920,20 @@ startBtn.addEventListener('click', () => {
 
   for (const wm of workerMap) {
     const { lampCount, chainIdx, workerIdx: wIdx } = wm;
-    const config = { ...baseConfig, numLamps: lampCount };
+    const config = { ...baseConfig, numLamps: lampCount, numDimmable: dimByTotal[lampCount] ?? numDim };
     const worker = new Worker(workerURL);
     workers.push(worker);
 
     worker.onmessage = (e) => {
       const msg = e.data;
-      if (msg.type === 'status') {
+      if (msg.type === 'error') {
+        console.error(`Worker ${wIdx} error:`, msg.message, msg.stack);
+        const barsEl = document.getElementById('progressBars');
+        const notice = document.createElement('div');
+        notice.style.cssText = 'font-family:var(--font-sans);font-size:0.65rem;color:#c03030;margin-bottom:0.5rem;padding:4px 8px;background:rgba(192,48,48,0.08);border-radius:3px;';
+        notice.textContent = 'Worker error: ' + msg.message;
+        barsEl.insertBefore(notice, barsEl.firstChild);
+      } else if (msg.type === 'status') {
         console.log(`Worker ${wIdx} (${lampCount}L C${chainIdx+1}): GPU=${msg.gpu}${msg.error ? ' ('+msg.error+')' : ''}`);
         if (!msg.gpu && wIdx === 0) {
           const barsEl = document.getElementById('progressBars');
@@ -3519,7 +3947,7 @@ startBtn.addEventListener('click', () => {
         chainProgress[wIdx] = pct;
         document.getElementById('pbar' + wIdx).style.width = pct + '%';
         document.getElementById('ppct' + wIdx).textContent = pct + '%';
-        document.getElementById('pscore' + wIdx).textContent = msg.bestScore.toFixed(1);
+        document.getElementById('pscore' + wIdx).textContent = (optimMode === 'eACH' ? (msg.bestScore / 100).toFixed(2) : msg.bestScore.toFixed(1));
         const tempEl = document.getElementById('ptemp' + wIdx);
         if (tempEl && msg.temp != null) {
           const t = msg.temp;
@@ -3576,7 +4004,7 @@ startBtn.addEventListener('click', () => {
             const best = perCountBest[c];
             const el = document.getElementById('bestScore_' + c);
             if (!el || !best) continue;
-            let text = best.score.toFixed(1);
+            let text = optimMode === 'eACH' ? (best.score / 100).toFixed(2) : best.score.toFixed(1);
             if (ci > 0) {
               const prevBest = perCountBest[sortedCounts[ci - 1]];
               if (prevBest) {
@@ -3599,7 +4027,7 @@ startBtn.addEventListener('click', () => {
             score: msg.bestScore, lamps: msg.lamps,
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
-          document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
+          document.getElementById('bestScore').textContent = (optimMode === 'eACH' ? (msg.bestScore / 100).toFixed(2) : msg.bestScore.toFixed(1));
           drawHeatmap();
         }
 
@@ -3637,7 +4065,7 @@ startBtn.addEventListener('click', () => {
             const best = perCountBest[c];
             const el = document.getElementById('bestScore_' + c);
             if (!el || !best) continue;
-            let text = best.score.toFixed(1);
+            let text = optimMode === 'eACH' ? (best.score / 100).toFixed(2) : best.score.toFixed(1);
             if (ci > 0) {
               const prevBest = perCountBest[sortedCounts[ci - 1]];
               if (prevBest) {
@@ -3659,7 +4087,7 @@ startBtn.addEventListener('click', () => {
             score: msg.bestScore, lamps: msg.lamps,
             benefit: msg.benefit, safetyPen: msg.safetyPen, floorPen: msg.floorPen,
           };
-          document.getElementById('bestScore').textContent = msg.bestScore.toFixed(1);
+          document.getElementById('bestScore').textContent = (optimMode === 'eACH' ? (msg.bestScore / 100).toFixed(2) : msg.bestScore.toFixed(1));
           drawHeatmap();
         }
 
@@ -3689,6 +4117,370 @@ startBtn.addEventListener('click', () => {
   }
 
   URL.revokeObjectURL(workerURL);
+});
+
+// ════════════════════════════════════════════════════════════════════
+// Cloud (Modal) optimizer
+// ════════════════════════════════════════════════════════════════════
+
+const MODAL_ENDPOINT = 'https://metr--uvc-optimizer-gpu-optimize.modal.run';
+const MODAL_STATUS = 'https://metr--uvc-optimizer-gpu-status.modal.run';
+const cloudBtn = document.getElementById('cloudBtn');
+
+cloudBtn.addEventListener('click', async () => {
+  if (optimizerRunning) return;
+
+  const hours = parseInt(tlvHoursInput.value);
+  const { tlv_uwcm2, threshold, skinThreshold, mode } = computeTLV(hours);
+  const optimMode = document.getElementById('optimMode')?.value || 'eACH';
+  const mounting = document.querySelector('input[name="mounting"]:checked').value;
+  const numNonDim = parseInt(numLampsInput.value);
+  const numDim = parseInt(numDimmableInput?.value || 0);
+  const numLamps = numNonDim + numDim;
+  const iterations = parseInt(iterationsInput.value);
+  const numChains = parseInt(chainsInput.value);
+  const doMarginalNonDim = document.getElementById('marginalCheck').checked;
+  const doMarginalDim = document.getElementById('marginalDimCheck')?.checked;
+
+  const marginalRange = parseInt(document.getElementById('marginalRange')?.value) || 1;
+  const marginalDimRange = parseInt(document.getElementById('marginalDimRange')?.value) || 1;
+  const lampCountConfigs = [];
+  const nonDimRange = doMarginalNonDim ? Array.from({length: 2*marginalRange+1}, (_, i) => numNonDim + i - marginalRange) : [numNonDim];
+  const dimRange = doMarginalDim ? Array.from({length: 2*marginalDimRange+1}, (_, i) => numDim + i - marginalDimRange) : [numDim];
+  for (const nd of nonDimRange) for (const dd of dimRange) {
+    if (nd >= 0 && dd >= 0 && nd + dd >= 1) lampCountConfigs.push({ total: nd + dd, numDimmable: dd });
+  }
+  const lampCounts = [...new Set(lampCountConfigs.map(c => c.total))].sort((a, b) => a - b);
+  const dimByTotal = {};
+  for (const c of lampCountConfigs) if (!(c.total in dimByTotal)) dimByTotal[c.total] = c.numDimmable;
+
+  const seedInputVal = document.getElementById('seedInput').value.trim();
+  const baseSeed = seedInputVal !== '' ? parseInt(seedInputVal) : (Date.now() % 100000);
+  const finalTemp = parseFloat(document.getElementById('finalTemp')?.value) || 0.05;
+
+  const config = {
+    roomWidth: getRoomW(), roomDepth: getRoomD(),
+    ceilingHeight: getCeilH(), mountHeight: getMountH(),
+    threshold, skinThreshold: skinThreshold || 0,
+    safetyMode: mode || 'standard', optimMode,
+    iterations, mounting, finalTemp,
+    numDimmable: numDim,
+    barriers: [...barriers],
+  };
+
+  const doMarginal = doMarginalNonDim || doMarginalDim;
+
+  optimizerRunning = true;
+  optimizerStartTime = Date.now();
+  bestResult = null;
+  scoreHistories = {};
+  chainScoreHistories = {};
+  for (const count of lampCounts) {
+    scoreHistories[count] = [];
+    chainScoreHistories[count] = {};
+  }
+  chartYMin = Infinity;
+  chartYMax = -Infinity;
+  perCountBest = {};
+  activeLampCounts = [...lampCounts];
+  viewingCount = numLamps;
+  lastIterations = iterations;
+  startBtn.disabled = true;
+  cloudBtn.disabled = true;
+  cloudBtn.textContent = 'Running on cloud...';
+
+  const progressArea = document.getElementById('progressArea');
+  progressArea.style.display = 'block';
+  document.getElementById('stopBtn').style.display = '';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('progressBars').innerHTML = '<div style="font-family:var(--font-sans);font-size:0.75rem;color:var(--ink-muted);padding:8px;">Sending to Modal cloud (' + (lampCounts.length * numChains) + ' chains across ' + lampCounts.length + ' lamp count(s))...</div>';
+
+  // Build progress stats -- show per-count scores when marginal
+  const statsEl = document.getElementById('progressStats');
+  if (doMarginal) {
+    let statsHtml = '';
+    for (const count of lampCounts) {
+      const isPrimary = count === numLamps;
+      statsHtml += `<div class="progress-stat">
+        <div class="stat-label">${count}L${isPrimary ? ' (primary)' : ''}</div>
+        <div class="stat-value" id="bestScore_${count}">&mdash;</div>
+      </div>`;
+    }
+    statsHtml += `<div class="progress-stat"><div class="stat-label">Elapsed</div><div class="stat-value" id="elapsed">0:00</div></div>`;
+    statsEl.innerHTML = statsHtml;
+  } else {
+    statsEl.innerHTML = `
+      <div class="progress-stat"><div class="stat-label">${(document.getElementById('optimMode')?.value||'eACH')==='eACH'?'Avg Fluence (µW/cm²)':'Best Score'}</div><div class="stat-value" id="bestScore">&mdash;</div></div>
+      <div class="progress-stat"><div class="stat-label">Elapsed</div><div class="stat-value" id="elapsed">0:00</div></div>
+    `;
+  }
+
+  // Build count toggle for marginal analysis
+  if (doMarginal) {
+    buildCountToggle('countToggle', lampCounts, numLamps, (count) => {
+      switchToCount(count);
+      // Show/hide chain bars for the selected lamp count
+      const totalChains = lampCounts.length * numChains;
+      for (let i = 0; i < totalChains; i++) {
+        const countIdx = Math.floor(i / numChains);
+        const lc = lampCounts[countIdx];
+        const wrap = document.getElementById('pwrap' + i);
+        const chart = document.getElementById('chainChart' + i);
+        if (wrap) wrap.style.display = (lc === count) ? '' : 'none';
+        if (chart && chart.style.display !== 'none') chart.style.display = 'none';
+      }
+      const headers = document.querySelectorAll('.cloud-count-header');
+      headers.forEach(h => {
+        h.style.display = (parseInt(h.dataset.count) === count) ? '' : 'none';
+      });
+    });
+  } else {
+    document.getElementById('countToggle').style.display = 'none';
+  }
+
+  // Set up marginal tracking
+  marginalRunData = doMarginal ? {
+    lampCounts,
+    primaryN: numLamps,
+    results: {},
+  } : null;
+
+  // Reset per lamp-count tracking
+  perCountBest = {};
+  for (const count of lampCounts) perCountBest[count] = null;
+
+  // Reset cloud state
+  cloudAborted = false;
+  cloudReader = null;
+
+  elapsedTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - optimizerStartTime) / 1000);
+    const m = Math.floor(secs / 60), s = secs % 60;
+    document.getElementById('elapsed').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
+
+  let cloudJobId = null;
+  let barsCreated = false;
+
+  try {
+    // POST to start the job -- returns immediately with job ID
+    const startResp = await fetch(MODAL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config, numChains, seed: baseSeed, lampCounts, dimByTotal }),
+    });
+    if (!startResp.ok) throw new Error('Cloud API error: ' + startResp.status + ' ' + (await startResp.text()));
+    const startData = await startResp.json();
+    if (startData.error) throw new Error(startData.message || startData.error);
+    cloudJobId = startData.jobId;
+
+    const totalChains = startData.totalChains;
+
+    // Build workerMap and chainResults
+    workerMap = [];
+    chainResults = new Array(totalChains).fill(null);
+    for (let i = 0; i < totalChains; i++) {
+      const countIdx = Math.floor(i / numChains);
+      const lc = lampCounts[countIdx] || numLamps;
+      workerMap.push({ lampCount: lc, chainIdx: i % numChains, workerIdx: i });
+    }
+
+    // Build per-chain progress bars
+    const barsEl = document.getElementById('progressBars');
+    barsEl.innerHTML = '';
+    for (let i = 0; i < totalChains; i++) {
+      const countIdx = Math.floor(i / numChains);
+      const ci2 = i % numChains;
+      const lc = lampCounts[countIdx] || numLamps;
+      if (lampCounts.length > 1 && ci2 === 0) {
+        const header = document.createElement('div');
+        header.className = 'cloud-count-header';
+        header.dataset.count = lc;
+        header.style.cssText = 'font-family:var(--font-sans);font-size:0.65rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink-light);margin-top:0.5rem;margin-bottom:2px;';
+        header.textContent = lc + ' lamp' + (lc !== 1 ? 's' : '') + (lc === numLamps ? ' (primary)' : '');
+        barsEl.appendChild(header);
+      }
+      const label = lampCounts.length > 1 ? `${lc}L C${ci2 + 1}` : `Chain ${ci2 + 1}`;
+      const wrap = document.createElement('div');
+      wrap.className = 'progress-bar-wrap';
+      wrap.id = 'pwrap' + i;
+      wrap.style.cursor = 'pointer';
+      wrap.innerHTML = `
+        <span class="progress-bar-label">${label}</span>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="pbar${i}"></div></div>
+        <span class="progress-pct" id="ppct${i}">0%</span>
+        <span class="progress-score" id="pscore${i}">&mdash;</span>
+      `;
+      const chartContainer = document.createElement('div');
+      chartContainer.id = 'chainChart' + i;
+      chartContainer.style.cssText = 'display:none;margin:2px 0 6px 68px;';
+      chartContainer.innerHTML = `<canvas id="chainCanvas${i}" height="60" style="width:100%;background:#faf8f4;border-radius:3px;border:1px solid var(--rule-light);"></canvas>`;
+      const ci_cap = i;
+      wrap.addEventListener('click', () => {
+        const visible = chartContainer.style.display !== 'none';
+        chartContainer.style.display = visible ? 'none' : 'block';
+        if (!visible) drawChainChart(ci_cap, lc, ci_cap % numChains);
+      });
+      barsEl.appendChild(wrap);
+      barsEl.appendChild(chartContainer);
+    }
+    barsCreated = true;
+
+    // Poll for status every 1.5s
+    let pollDone = false;
+    while (!pollDone && !cloudAborted) {
+      await new Promise(r => setTimeout(r, 1500));
+      if (cloudAborted) break;
+
+      let state;
+      try {
+        const statusResp = await fetch(MODAL_STATUS + '?jobId=' + encodeURIComponent(cloudJobId));
+        if (statusResp.status === 404) continue; // Job not registered yet
+        if (!statusResp.ok) continue;
+        state = await statusResp.json();
+      } catch (pollErr) {
+        console.warn('Poll error (will retry):', pollErr.message);
+        continue; // Network blip -- just retry next interval
+      }
+
+      if (!state || state.error) continue;
+
+      // Update per-chain progress bars from state.chains
+      if (state.chains) {
+        for (const [cidStr, cp] of Object.entries(state.chains)) {
+          const cid = parseInt(cidStr);
+          const pbar = document.getElementById('pbar' + cid);
+          if (pbar) pbar.style.width = cp.pct + '%';
+          const ppct = document.getElementById('ppct' + cid);
+          if (ppct) ppct.textContent = cp.pct + '%';
+          const pscore = document.getElementById('pscore' + cid);
+          const scoreDisp = optimMode === 'eACH' ? (cp.bestScore / 100).toFixed(2) : cp.bestScore.toFixed(1);
+          if (pscore) pscore.textContent = scoreDisp;
+
+          // Track for search quality
+          chainResults[cid] = { bestScore: cp.bestScore };
+
+          // Update heatmap from lamps
+          const countIdx = Math.floor(cid / numChains);
+          const chainIdx = cid % numChains;
+          const chainLampCount = lampCounts[countIdx] || numLamps;
+          if (cp.lamps) {
+            if (!perCountBest[chainLampCount] || cp.bestScore > perCountBest[chainLampCount].score) {
+              perCountBest[chainLampCount] = {
+                score: cp.bestScore, lamps: cp.lamps,
+                benefit: cp.benefit, safetyPen: cp.safetyPen, floorPen: cp.floorPen,
+              };
+            }
+          }
+
+          // Score history
+          if (!scoreHistories[chainLampCount]) scoreHistories[chainLampCount] = [];
+          const hist = scoreHistories[chainLampCount];
+          const bestForCount = perCountBest[chainLampCount]?.score || cp.bestScore;
+          const trackScore = Math.max(bestForCount, cp.bestScore);
+          if (hist.length === 0) hist.push({ step: 0, score: trackScore });
+          if (cp.step >= hist[hist.length - 1].step) {
+            hist.push({ step: cp.step, score: trackScore });
+          } else {
+            hist[hist.length - 1].score = Math.max(hist[hist.length - 1].score, trackScore);
+          }
+          lastIterations = cp.iterations;
+
+          // Per-chain chart history
+          if (chainScoreHistories[chainLampCount]) {
+            if (!chainScoreHistories[chainLampCount][chainIdx]) chainScoreHistories[chainLampCount][chainIdx] = [];
+            const ch = chainScoreHistories[chainLampCount][chainIdx];
+            if (ch.length === 0 || cp.step > ch[ch.length - 1].step) {
+              ch.push({ step: cp.step, score: cp.bestScore });
+            }
+          }
+        }
+      }
+
+      // Update heatmap with best for primary count
+      const primaryBest = perCountBest[numLamps];
+      if (primaryBest && (!bestResult || primaryBest.score > bestResult.score)) {
+        bestResult = primaryBest;
+        drawHeatmap();
+      }
+
+      // Update best score display
+      if (bestResult) {
+        const bs = document.getElementById('bestScore');
+        if (bs) bs.textContent = optimMode === 'eACH' ? (bestResult.score / 100).toFixed(2) : bestResult.score.toFixed(1);
+      }
+
+      // Update per-count displays for marginal
+      if (doMarginal && state.perCountBest) {
+        for (const [countStr, result] of Object.entries(state.perCountBest)) {
+          const c = parseInt(countStr);
+          if (!perCountBest[c] || result.score > perCountBest[c].score) {
+            perCountBest[c] = result;
+          }
+        }
+        const sortedCounts = activeLampCounts.slice().sort((a, b) => a - b);
+        for (let ci = 0; ci < sortedCounts.length; ci++) {
+          const c = sortedCounts[ci];
+          const best = perCountBest[c];
+          const el = document.getElementById('bestScore_' + c);
+          if (!el || !best) continue;
+          let text = optimMode === 'eACH' ? (best.score / 100).toFixed(2) : best.score.toFixed(1);
+          if (ci > 0) {
+            const prevBest = perCountBest[sortedCounts[ci - 1]];
+            if (prevBest) {
+              const d = best.score - prevBest.score;
+              text += ` (${d >= 0 ? '+' : ''}${(optimMode === 'eACH' ? d/100 : d).toFixed(optimMode === 'eACH' ? 3 : 1)})`;
+            }
+          }
+          el.textContent = text;
+        }
+      }
+
+      // Draw score chart
+      if (viewingCount && scoreHistories[viewingCount]?.length > 1) drawScoreChart();
+
+      // Check if done
+      if (state.status === 'done') {
+        pollDone = true;
+        if (state.results) {
+          for (const [countStr, result] of Object.entries(state.results)) {
+            const count = parseInt(countStr);
+            perCountBest[count] = result;
+            if (count === numLamps || !bestResult || result.score > bestResult.score) {
+              bestResult = result;
+            }
+          }
+        }
+        document.getElementById('progressBars').innerHTML = `<div style="font-family:var(--font-sans);font-size:0.75rem;color:#4a7a30;padding:8px;">Cloud optimization complete in ${state.wallTime || state.elapsed}s.</div>`;
+        marginalRunData = doMarginal ? { lampCounts, primaryN: numLamps, results: perCountBest } : null;
+        finishOptimization();
+      }
+    }
+
+    // If aborted, show partial results
+    if (cloudAborted && !pollDone) {
+      console.log('Cloud run stopped by user');
+      // finishOptimization already called from stop handler
+    }
+
+  } catch (err) {
+    console.error('Cloud optimizer error:', err);
+    const hasResults = bestResult && bestResult.lamps;
+    if (hasResults) {
+      document.getElementById('progressBars').innerHTML = `<div style="font-family:var(--font-sans);font-size:0.75rem;color:#9a5030;padding:8px;">Error: ${err.message}. Showing partial results.</div>`;
+      marginalRunData = doMarginal ? { lampCounts, primaryN: numLamps, results: perCountBest } : null;
+      finishOptimization();
+    } else {
+      document.getElementById('progressBars').innerHTML = `<div style="font-family:var(--font-sans);font-size:0.75rem;color:#c03030;padding:8px;">${err.message}</div>`;
+      if (optimizerRunning) {
+        optimizerRunning = false;
+        clearInterval(elapsedTimer);
+        startBtn.disabled = false;
+        cloudBtn.disabled = false;
+        cloudBtn.textContent = '\u2601 Run on cloud';
+      }
+    }
+  }
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -3739,29 +4531,51 @@ function switchToCount(count) {
 
 function updateResultsDisplay(result, count) {
   const hours = parseInt(tlvHoursInput.value);
-  const { threshold } = computeTLV(hours);
-  document.getElementById('scoreBreakdown').innerHTML = `
-    <div class="derived-row"><label data-tip="The overall optimization score. Higher is better. Score = Benefit - Safety Penalty - Floor Penalty.">Final Score</label>: <strong>${result.score.toFixed(2)}</strong> <span style="font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-light);">(${count} lamps)</span></div>
+  const { threshold, skinThreshold, mode } = computeTLV(hours);
+  let safetyThresholdRow;
+  if (mode === 'eye-focused') {
+    safetyThresholdRow = `<div class="derived-row">Eye threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Skin threshold: <strong>${skinThreshold.toFixed(1)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Safety penalty: <strong>${(result.safetyPen > 0 ? 'non-zero' : 'zero (compliant)')}</strong></div>`;
+  } else {
+    safetyThresholdRow = `<div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(result.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>`;
+  }
+  const optimMode = document.getElementById('optimMode')?.value || 'eACH';
+  let benefitRow;
+  if (optimMode === 'eACH') {
+    const volAvg = result.benefit / 100; // undo 100x internal scaling
+    const sarsEach = 2.62 * volAvg * 3.6;
+    benefitRow = `
     <div class="derived-row">
-      <label data-tip="Sum of weighted irradiance at each evaluation probe, capped at 4.0 µW/cm² per probe. Higher means more UV coverage where it matters.">Benefit</label>: <strong>${result.benefit.toFixed(2)}</strong> &nbsp;|&nbsp;
-      <label data-tip="Penalizes configurations where FOV-weighted eye irradiance exceeds the safety threshold at any point. Multiplied by 300× to strongly discourage unsafe placements. Zero means fully compliant.">Safety Penalty</label>: <strong>${result.safetyPen.toFixed(4)}</strong> &nbsp;|&nbsp;
-      <label data-tip="Penalizes probes receiving less than 1.0 µW/cm². Quadratic penalty weighted by probe importance — ensures minimum coverage everywhere, not just hotspots.">Floor Penalty</label>: <strong>${result.floorPen.toFixed(2)}</strong>
-    </div>
-    <div class="derived-row">Safety threshold: <strong>${threshold.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp; Peak eye irr: <strong>${(result.safetyPen > 0 ? '>' : '\u2264') + threshold.toFixed(2)} &micro;W/cm&sup2;</strong></div>
+      <label data-tip="Volume-average irradiance across the room. This directly determines eACH for each pathogen.">Vol-avg irradiance</label>: <strong>${volAvg.toFixed(2)} &micro;W/cm&sup2;</strong> &nbsp;|&nbsp;
+      SARS-CoV-2 eACH: <strong>${sarsEach.toFixed(1)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Total safety constraint violation. Zero means fully compliant with eye and skin TLVs.">Safety penalty</label>: <strong>${result.safetyPen.toFixed(4)}</strong>
+    </div>`;
+  } else {
+    benefitRow = `
+    <div class="derived-row">
+      <label data-tip="Sum of weighted irradiance at each evaluation probe, capped at 4.0 uW/cm2 per probe.">Benefit</label>: <strong>${result.benefit.toFixed(2)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Total safety constraint violation. Zero means fully compliant.">Safety penalty</label>: <strong>${result.safetyPen.toFixed(4)}</strong> &nbsp;|&nbsp;
+      <label data-tip="Penalizes probes below 1.0 uW/cm2.">Floor penalty</label>: <strong>${result.floorPen.toFixed(2)}</strong>
+    </div>`;
+  }
+  document.getElementById('scoreBreakdown').innerHTML = `
+    <div class="derived-row"><label data-tip="The overall optimization score. In eACH mode, this is the volume-average irradiance (scaled internally for optimization).">Score</label>: <strong>${optimMode === 'eACH' ? (result.score / 100).toFixed(2) : result.score.toFixed(2)}</strong> <span style="font-family:var(--font-sans);font-size:0.65rem;color:var(--ink-light);">(${count} lamps${optimMode === 'eACH' ? ', well-mixed' : ', near-field'})</span></div>
+    ${benefitRow}
+    ${safetyThresholdRow}
   `;
   // Lamp table
   const tbody = document.querySelector('#lampTable tbody');
   tbody.innerHTML = '';
   result.lamps.forEach((l, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${l.x.toFixed(2)}</td><td>${l.y.toFixed(2)}</td><td>${l.aim.toFixed(0)}</td><td>${l.tilt.toFixed(0)}</td>`;
+    tr.innerHTML = `<td>${i + 1}</td><td>${l.x.toFixed(2)}</td><td>${l.y.toFixed(2)}</td><td>${l.aim.toFixed(0)}</td><td>${l.tilt.toFixed(0)}</td><td>${Math.round((l.power || 1) * 100)}%</td>`;
     tbody.appendChild(tr);
   });
   // Update explorer link
   const explorerLink = document.getElementById('explorerLink');
-  const lampsParam = result.lamps.map(l =>
-    `${l.x.toFixed(2)},${l.y.toFixed(2)},${l.aim.toFixed(0)},${l.tilt.toFixed(0)}`
-  ).join(';');
+  const lampsParam = result.lamps.map(l => {
+    const base = `${l.x.toFixed(2)},${l.y.toFixed(2)},${l.aim.toFixed(0)},${l.tilt.toFixed(0)}`;
+    return (l.power && l.power < 1.0) ? `${base},${l.power}` : base;
+  }).join(';');
   explorerLink.href = `uvc-explorer.html?${new URLSearchParams({
     lamps: lampsParam, w: getRoomW(), d: getRoomD(), ch: getCeilH(), mh: getMountH(), score: result.score.toFixed(1)
   }).toString()}`;
@@ -3770,6 +4584,14 @@ function updateResultsDisplay(result, count) {
 document.getElementById('stopBtn').addEventListener('click', () => {
   if (!optimizerRunning) return;
   console.log('Stopping optimizer...');
+  // Cloud: stop polling and finish with whatever we have
+  if (cloudAborted !== undefined && optimizerRunning) {
+    cloudAborted = true;
+    marginalRunData = doMarginal ? { lampCounts: activeLampCounts, primaryN: viewingCount, results: perCountBest } : null;
+    finishOptimization();
+    return;
+  }
+  // Local: signal workers to stop
   for (const w of workers) {
     w.postMessage({ type: 'stop' });
   }
@@ -3823,7 +4645,8 @@ function searchQualityHtml(history, totalIter, lampCount) {
     chainsAgree = nearBest >= 3 || (nearBest >= 2 && n === 2);
   }
 
-  const topScores = chainScores.slice(0, Math.min(5, n)).map(s => s.toFixed(1)).join(', ');
+  const isEACH = (document.getElementById('optimMode')?.value || 'eACH') === 'eACH';
+  const topScores = chainScores.slice(0, Math.min(5, n)).map(s => isEACH ? (s / 100).toFixed(2) : s.toFixed(1)).join(', ');
   const suffix = n > 5 ? ` ... (${n} total)` : '';
 
   let verdict, color, detail;
@@ -3864,7 +4687,9 @@ function finishOptimization() {
   optimizerRunning = false;
   clearInterval(elapsedTimer);
   startBtn.disabled = false;
-  startBtn.textContent = '\u25B6 Start Optimization';
+  startBtn.textContent = '\u25B6 Run locally';
+  cloudBtn.disabled = false;
+  cloudBtn.textContent = '\u2601 Run on cloud';
   try { _finishOptimizationInner(); } catch(e) { console.error('finishOptimization error:', e); }
 }
 function _finishOptimizationInner() {
@@ -3954,8 +4779,10 @@ function _finishOptimizationInner() {
           delta = '\u2014';
           verdict = '<span style="color:var(--ink-light);">Baseline</span>';
         }
+        const om = document.getElementById('optimMode')?.value || 'eACH';
+        const fmtScore = (s) => om === 'eACH' ? (s / 100).toFixed(2) : s.toFixed(1);
         const style = isMain ? ' style="font-weight:600; color:var(--ink);"' : '';
-        html += `<tr${style}><td>${r.lamps}${isMain ? ' \u2190' : ''}</td><td>${r.score.toFixed(1)}</td><td>${r.benefit.toFixed(1)}</td><td>${delta}</td><td>${change}</td><td>${verdict}</td></tr>`;
+        html += `<tr${style}><td>${r.lamps}${isMain ? ' \u2190' : ''}</td><td>${fmtScore(r.score)}</td><td>${fmtScore(r.benefit)}</td><td>${i > 0 ? (deltaNum >= 0 ? '+' : '') + fmtScore(deltaNum < 0 ? -Math.abs(deltaNum) : deltaNum) : delta}</td><td>${change}</td><td>${verdict}</td></tr>`;
       }
       html += '</tbody></table>';
 
@@ -4151,9 +4978,11 @@ function runRankAnalysis() {
     html += '<table class="lamp-table"><thead><tr><th>#</th><th>Lamp</th><th>Position</th><th>Score</th><th>Delta</th></tr></thead><tbody>';
     installOrder.forEach((entry, i) => {
       const l = entry.lamp;
-      const delta = entry.delta !== null ? ((entry.delta >= 0 ? '+' : '') + entry.delta.toFixed(1)) : '\u2014';
+      const om = document.getElementById('optimMode')?.value || 'eACH';
+      const fs = (s) => om === 'eACH' ? (s / 100).toFixed(2) : s.toFixed(1);
+      const delta = entry.delta !== null ? ((entry.delta >= 0 ? '+' : '') + fs(entry.delta)) : '\u2014';
       const note = i === 0 ? ' <span style="color:var(--ink-light); font-family:var(--font-sans); font-size:0.6rem;">\u2190 install first</span>' : '';
-      html += `<tr><td>${i + 1}</td><td>L${entry.lampIdx + 1}</td><td>(${l.x.toFixed(1)}, ${l.y.toFixed(1)})</td><td>${entry.score.toFixed(1)}</td><td>${delta}${note}</td></tr>`;
+      html += `<tr><td>${i + 1}</td><td>L${entry.lampIdx + 1}</td><td>(${l.x.toFixed(1)}, ${l.y.toFixed(1)})</td><td>${fs(entry.score)}</td><td>${delta}${note}</td></tr>`;
     });
     html += '</tbody></table>';
 
@@ -4246,7 +5075,7 @@ function generateGuvFile(lamps) {
       width: null, length: null, height: null,
       units: "feet",
       source_density: 1,
-      scaling_factor: 1.0,
+      scaling_factor: l.power || 1.0,
       intensity_map: null,
       enabled: true,
       surface: {
