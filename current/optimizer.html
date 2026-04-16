@@ -3703,6 +3703,7 @@ let optimizerRunning = false;
 let optimizerStartTime = 0;
 let elapsedTimer = null;
 let cloudAborted = false;
+let isCloudRun = false;
 let chainResults = [];
 let chainProgress = [];
 let marginalRunData = null; // { lampCounts: [n-1, n, n+1], results: {count: bestResult}, primaryN: n }
@@ -4251,6 +4252,7 @@ cloudBtn.addEventListener('click', async () => {
 
   // Reset cloud state
   cloudAborted = false;
+  isCloudRun = true;
   cloudReader = null;
 
   elapsedTimer = setInterval(() => {
@@ -4410,14 +4412,18 @@ cloudBtn.addEventListener('click', async () => {
         if (bs) bs.textContent = optimMode === 'eACH' ? (bestResult.score / 100).toFixed(2) : bestResult.score.toFixed(1);
       }
 
-      // Update per-count displays for marginal
-      if (doMarginal && state.perCountBest) {
+      // Update per-count best from server (live heatmap + marginal displays)
+      if (state.perCountBest) {
         for (const [countStr, result] of Object.entries(state.perCountBest)) {
           const c = parseInt(countStr);
           if (!perCountBest[c] || result.score > perCountBest[c].score) {
             perCountBest[c] = result;
           }
         }
+      }
+
+      // Update per-count displays for marginal
+      if (doMarginal) {
         const sortedCounts = activeLampCounts.slice().sort((a, b) => a - b);
         for (let ci = 0; ci < sortedCounts.length; ci++) {
           const c = sortedCounts[ci];
@@ -4584,22 +4590,22 @@ function updateResultsDisplay(result, count) {
 document.getElementById('stopBtn').addEventListener('click', () => {
   if (!optimizerRunning) return;
   console.log('Stopping optimizer...');
-  // Cloud: stop polling and finish with whatever we have
-  if (cloudAborted !== undefined && optimizerRunning) {
+  const hasMarginal = document.getElementById('marginalCheck')?.checked || document.getElementById('marginalDimCheck')?.checked;
+  marginalRunData = hasMarginal ? { lampCounts: activeLampCounts, primaryN: viewingCount, results: { ...perCountBest } } : null;
+  if (isCloudRun) {
+    // Cloud: stop polling and finish with whatever we have
     cloudAborted = true;
-    marginalRunData = doMarginal ? { lampCounts: activeLampCounts, primaryN: viewingCount, results: perCountBest } : null;
     finishOptimization();
-    return;
+  } else {
+    // Local: signal workers to stop gracefully, then terminate
+    for (const w of workers) {
+      w.postMessage({ type: 'stop' });
+    }
+    setTimeout(() => {
+      for (const w of workers) w.terminate();
+      finishOptimization();
+    }, 2000);
   }
-  // Local: signal workers to stop
-  for (const w of workers) {
-    w.postMessage({ type: 'stop' });
-  }
-  // Give workers a moment to finish gracefully, then terminate
-  setTimeout(() => {
-    for (const w of workers) w.terminate();
-    finishOptimization();
-  }, 2000);
 });
 
 // ════════════════════════════════════════════════════════════════════
@@ -4685,6 +4691,7 @@ function searchQualityHtml(history, totalIter, lampCount) {
 function finishOptimization() {
   if (!optimizerRunning) return;
   optimizerRunning = false;
+  isCloudRun = false;
   clearInterval(elapsedTimer);
   startBtn.disabled = false;
   startBtn.textContent = '\u25B6 Run locally';
