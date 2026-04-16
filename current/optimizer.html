@@ -4352,9 +4352,15 @@ cloudBtn.addEventListener('click', async () => {
         for (const [cidStr, cp] of Object.entries(state.chains)) {
           const cid = parseInt(cidStr);
           const pbar = document.getElementById('pbar' + cid);
-          if (pbar) pbar.style.width = cp.pct + '%';
+          if (pbar) {
+            const curPct = parseFloat(pbar.style.width) || 0;
+            if (cp.pct >= curPct) pbar.style.width = cp.pct + '%';
+          }
           const ppct = document.getElementById('ppct' + cid);
-          if (ppct) ppct.textContent = cp.pct + '%';
+          if (ppct) {
+            const curVal = parseInt(ppct.textContent) || 0;
+            if (cp.pct >= curVal) ppct.textContent = cp.pct + '%';
+          }
           const pscore = document.getElementById('pscore' + cid);
           const scoreDisp = optimMode === 'eACH' ? (cp.bestScore / 100).toFixed(2) : cp.bestScore.toFixed(1);
           if (pscore) pscore.textContent = scoreDisp;
